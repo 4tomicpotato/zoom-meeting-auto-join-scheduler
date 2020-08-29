@@ -7,7 +7,8 @@ import winreg
 
 #function to join the meeting
 def startMeeting():
-    startRecording()
+    if(recordOption == 'y' || recordOption == 'Y'):
+        startRecording()
     #forming the abs path to zoom bin
     pathToAppData = os.getenv('APPDATA')
     absPathToZoomBin = pathToAppData + "\\Zoom\\bin\\Zoom.exe"
@@ -38,6 +39,7 @@ def startRecording():
 meetingURL = input("Enter the full meeting URL here: ").strip()
 scheduledAt = input("Enter the date & time when the meeting is scheduled in DD-MM-YYYY HH:MM format (Ex: 28-08-2020 21:00): ").strip()
 joinAs = input("Enter a name to join the meeting as: ").strip()
+recordOption = input("Do you want to record your meeting? [y/N]").strip()
 
 #parsing the URL into componenets
 parsed = parse.urlsplit(meetingURL)
