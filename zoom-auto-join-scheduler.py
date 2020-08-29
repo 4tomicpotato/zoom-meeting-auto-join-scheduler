@@ -7,20 +7,31 @@ import winreg
 
 #function to join the meeting
 def startMeeting():
-
+    startRecording()
     #forming the abs path to zoom bin
     pathToAppData = os.getenv('APPDATA')
     absPathToZoomBin = pathToAppData + "\\Zoom\\bin\\Zoom.exe"
     #forming the arg to pass to zoom bin
     argToPass = '--url="'+zoommtgURL+'"'
     #merging the abs path and arg to form command
-    fullCommand = absPathToZoomBin+" "+argToPass
+    commandToJoinMeeting = absPathToZoomBin+" "+argToPass
     #supressing the output
     ONULL = open(os.devnull, 'w')
     #calling the command
-    subprocess.call(fullCommand, stdout=ONULL, stderr=ONULL, shell=False)
+    subprocess.Popen(commandToJoinMeeting, stdout=ONULL, stderr=ONULL, shell=False)
+    #to start recording
 
-
+#function to record the meeting using bandicam
+def startRecording():
+    #finding the installation path of bandicam through registry
+    storedKey = winreg.OpenKey(winreg.HKEY_CURRENT_USER, "SOFTWARE\\BANDISOFT\\BANDICAM")
+    progPath =  winreg.QueryValueEx(storedKey, "ProgramPath")[0]
+    #forming the full command to record using bandicam
+    commandToStartRecording = progPath + " /record"
+    #supressing the output
+    ONULL = open(os.devnull, 'w')
+    #calling the command to record
+    subprocess.Popen(commandToStartRecording, stdout=ONULL, stderr=ONULL, shell=True)
     
 
 #user Input
