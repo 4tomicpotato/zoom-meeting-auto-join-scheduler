@@ -7,7 +7,7 @@ import winreg
 
 #function to join the meeting
 def startMeeting():
-    if(recordOption == 'y' || recordOption == 'Y'):
+    if(recordOption == 'y' or recordOption == 'Y'):
         startRecording()
     #forming the abs path to zoom bin
     pathToAppData = os.getenv('APPDATA')
