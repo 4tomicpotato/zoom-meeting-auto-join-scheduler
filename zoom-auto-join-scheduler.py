@@ -25,15 +25,23 @@ def startMeeting():
 #function to record the meeting using bandicam
 def startRecording():
     #finding the installation path of bandicam through registry
-    storedKey = winreg.OpenKey(winreg.HKEY_CURRENT_USER, "SOFTWARE\\BANDISOFT\\BANDICAM")
-    progPath =  winreg.QueryValueEx(storedKey, "ProgramPath")[0]
+    try:
+        progPath =  findBandicamPath()
+    except:
+        print("Bandicam is not installed in your computer. Please install Bandicam and re-try recording option.")
     #forming the full command to record using bandicam
     commandToStartRecording = progPath + " /record"
     #supressing the output
     ONULL = open(os.devnull, 'w')
     #calling the command to record
     subprocess.Popen(commandToStartRecording, stdout=ONULL, stderr=ONULL, shell=True)
-    
+
+def findBandicamPath():
+    #finding the installation path of bandicam through registry
+    storedKey = winreg.OpenKey(winreg.HKEY_CURRENT_USER, "SOFTWARE\\BANDISOFT\\BANDICAM")
+    bandiPath =  winreg.QueryValueEx(storedKey, "ProgramPath")[0]
+    return bandiPath
+
 while 1:
     #user Input
     meetingURL = input("Enter the full zoom meeting URL here: ").strip()
@@ -44,6 +52,7 @@ while 1:
     if "zoom.us" not in parsed.netloc:
         print("Invalid URL input. Your meeting URL should look like: https://us04web.zoom.us/j/XXXXXXXXXX?pwd=XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX. Try again.")
         continue
+    zoomServer = parsed.netloc
     
     #checking the validity of input url
     hashedMeetingPwd = parse.parse_qs(parsed.query)['pwd'][0]
@@ -55,7 +64,6 @@ while 1:
     if(not(meetingID.isdecimal())):
         print("Invalid ID part of URL. Your meeting URL should look like: https://us04web.zoom.us/j/XXXXXXXXXX?pwd=XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX. Try again.")
         continue
-
     break
 
 while 1:
@@ -73,17 +81,31 @@ while 1:
     now = datetime.now()
     if(now > scheduledAt):
         print("Invalid Date & Time input. Scheduled date-time can't be lower than current date-time. Try again.")
-        continue
+        continue   
     break
 
-
-#user Input
-joinAs = input("Enter a name to join the meeting as: ").strip()
-#user Input
-recordOption = input("Do you want to record your meeting (Bandicam required) ? [y/N]").strip()
-
 #generating the new url which has zoommtg protocol (will be used to pass as argument to zoom.exe)
-zoommtgURL = "zoommtg://us04web.zoom.us/join?action=join&confno="+meetingID+"&pwd="+hashedMeetingPwd+"&uname="+joinAs
+zoommtgURL = "zoommtg://" + zoomServer + "/join?action=join&confno=" + meetingID + "&pwd=" + hashedMeetingPwd
+
+#user Input
+joinAs = input("Enter a name to join the meeting as (Optional - if you're already logged in Zoom): ").strip()
+#if username is not empty
+if(len(joinAs) > 0):
+    #url encoding the username
+    joinAs = parse.quote(joinAs)
+    #adding it to zoommtgURL
+    zoommtgURL = zoommtgURL + "&uname=" + joinAs
+
+while 1:    
+    #user Input
+    recordOption = input("Do you want to record your meeting (Bandicam required) ? [y/N]").strip()
+    if(recordOption == 'y' or recordOption == 'Y'):
+        try:
+            progPath =  findBandicamPath()
+        except:
+            print("Bandicam is not installed in your computer. Please install Bandicam and re-try recording option.")
+            continue
+    break
 
 #scheduling the meeting
 delayInSecs = (scheduledAt - now).total_seconds()
