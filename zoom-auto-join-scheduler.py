@@ -66,7 +66,7 @@ def keepRecording():
 def checkProcRunning(procName):
     try:
         callTasklist = 'TASKLIST', '/FI', 'imagename eq %s' % procName
-        result = subprocess.check_output(callTasklist).decode()
+        result = subprocess.check_output(callTasklist, shell=True).decode()
         # checking end of string for proc name
         lastLine = result.strip().split('\r\n')[-1]
         # because Fail message could be translated
