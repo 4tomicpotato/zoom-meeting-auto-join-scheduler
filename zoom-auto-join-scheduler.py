@@ -6,13 +6,16 @@ import os
 import winreg
 from pyautogui import screenshot
 
+#global variables
+commandToStartRecording = ''
 
 #function to join the meeting
 def startMeeting():
     #to start recording
     if(recordOption == 'y' or recordOption == 'Y'):
         startRecording()
-        keepRecording()
+        #start the keep recording function after 3minutes
+        threading.Timer(180.0, keepRecording).start()
     #forming the abs path to zoom bin
     pathToAppData = os.getenv('APPDATA')
     absPathToZoomBin = pathToAppData + "\\Zoom\\bin\\Zoom.exe"
@@ -36,12 +39,12 @@ def startRecording():
         progPath =  findBandicamPath()
     except:
         print("\nBandicam is not installed in your computer. Please install Bandicam and re-try recording option.")
+    #accessing the global variable
+    global commandToStartRecording
     #forming the full command to record using bandicam
     commandToStartRecording = progPath + " /record"
-    #supressing the output
-    ONULL = open(os.devnull, 'w')
-    #calling the command to record
-    subprocess.Popen(commandToStartRecording, stdout=ONULL, stderr=ONULL, shell=True)
+    hitRecord()
+    
 
 def findBandicamPath():
     #finding the installation path of bandicam through registry
@@ -49,10 +52,16 @@ def findBandicamPath():
     bandiPath =  winreg.QueryValueEx(storedKey, "ProgramPath")[0]
     return bandiPath
 
+def hitRecord():
+    #supressing the output
+    ONULL = open(os.devnull, 'w')
+    #calling the command to record
+    subprocess.Popen(commandToStartRecording, stdout=ONULL, stderr=ONULL, shell=True)
+
 def keepRecording():
     if(checkProcRunning("bdcam.exe")):
-        startRecording()
-    threading.Timer(5.0, keepRecording).start()
+        hitRecord()
+        threading.Timer(5.0, keepRecording).start()
 
 def checkProcRunning(procName):
     try:
