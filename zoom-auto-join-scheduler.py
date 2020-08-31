@@ -8,37 +8,52 @@ from pyautogui import screenshot
 
 #global variables
 commandToStartRecording = ''
+commandToJoinMeeting = ''
+meetingOn = False
+endAt = ''
+stopRecTime = ''
 
 #function to join the meeting
 def startMeeting():
+    
+    #turn on the meeting flag
+    global meetingOn
+    meetingOn = True
+    
     #to start recording
     if(recordOption == 'y' or recordOption == 'Y'):
         startRecording()
         #start the keep recording function after 3minutes
         threading.Timer(180.0, keepRecording).start()
+    
     #forming the abs path to zoom bin
     pathToAppData = os.getenv('APPDATA')
     absPathToZoomBin = pathToAppData + "\\Zoom\\bin\\Zoom.exe"
     #forming the arg to pass to zoom bin
     argToPass = '--url="'+zoommtgURL+'"'
+
+    global commandToJoinMeeting
     #merging the abs path and arg to form command
     commandToJoinMeeting = absPathToZoomBin+" "+argToPass
-    #supressing the output
-    ONULL = open(os.devnull, 'w')
-    #calling the command
-    subprocess.Popen(commandToJoinMeeting, stdout=ONULL, stderr=ONULL, shell=False)
+
+    joinMeeting()
+    
     #screenshot will be take 60secs after joining meeting
     if(screenshotOption == 'y' or screenshotOption == 'Y'):
         threading.Timer(120.0, takeScreenshot).start()
-    
 
+    #initiate check for meeting ended or not
+    #threading.Timer(10.0, checkIfMeetingEnded).start()
+        
 #function to record the meeting using bandicam
 def startRecording():
+
     #finding the installation path of bandicam through registry
     try:
         progPath =  findBandicamPath()
     except:
         print("\nBandicam is not installed in your computer. Please install Bandicam and re-try recording option.")
+
     #accessing the global variable
     global commandToStartRecording
     #forming the full command to record using bandicam
@@ -58,10 +73,34 @@ def hitRecord():
     #calling the command to record
     subprocess.Popen(commandToStartRecording, stdout=ONULL, stderr=ONULL, shell=True)
 
+def joinMeeting():
+    #supressing the output
+    ONULL = open(os.devnull, 'w')
+    #calling the command
+    subprocess.Popen(commandToJoinMeeting, stdout=ONULL, stderr=ONULL, shell=False)
+
 def keepRecording():
-    if(checkProcRunning("bdcam.exe")):
+    global meetingOn
+    #check if bandicam is running and meeting is on
+    if(meetingOn and checkProcRunning("bdcam.exe")):
         hitRecord()
-        threading.Timer(5.0, keepRecording).start()
+        threading.Timer(10.0, keepRecording).start()
+
+def stopRecording():
+    #finding the installation path of bandicam through registry
+    try:
+        progPath =  findBandicamPath()
+    except:
+        print("\nBandicam not found. Please manually close the program.")
+
+    #forming the full command to stop recording
+    commandToStopRecording = progPath + " /stop"
+    subprocess.Popen(commandToStopRecording, stdout=ONULL, stderr=ONULL, shell=True)
+    
+def keepMeetingAlive():
+    if(datetime.now() < endAt):
+        joinMeeting()
+        threading.Timer(30.0, keepMeetingAlive).start()
 
 def checkProcRunning(procName):
     try:
@@ -75,6 +114,8 @@ def checkProcRunning(procName):
     else:
         return lastLine.lower().startswith(procName.lower())
     
+
+
 
 def takeScreenshot():
     try:
@@ -114,7 +155,7 @@ while 1:
 
 while 1:
     #scheduling date-time input
-    scheduledAt = input("\nEnter the date & time when the meeting is scheduled in DD-MM-YYYY HH:MM format (Ex: 28-08-2020 21:00): ").strip()
+    scheduledAt = input("\nEnter the date & time when the meeting is scheduled to start in DD-MM-YYYY HH:MM format (Ex: 28-08-2020 21:00): ").strip()
 
     #Parsing the date from str to datetime object & error-handling
     try: 
@@ -130,6 +171,7 @@ while 1:
         continue   
     break
 
+
 #generating the new url which has zoommtg protocol (will be used to pass as argument to zoom.exe)
 zoommtgURL = "zoommtg://" + zoomServer + "/join?action=join&confno=" + meetingID + "&pwd=" + hashedMeetingPwd
 
@@ -144,21 +186,70 @@ if(len(joinAs) > 0):
 
 
 #screenshot option input
-screenshotOption = input("\nDo you want to take a screenshot of your meeting? [y/N]").strip()
+screenshotOption = input("\nDo you want to take a screenshot of your meeting? [y/N] ").strip()
 if(screenshotOption == 'y' or screenshotOption == 'Y'):
     print("\nScreenshot will be taken 2 minutes after joining the meeting and saved to Desktop")
 
+
+
+
+stayConnected = input("Do you want to auto re-connect to the meeting if it disconnects before a specified time? (y/N) ").strip()
+
+    if(stayConnected == 'y' or stayConnected == 'Y'):
+        while 1:
+            global endAt
+            #ending date-time input
+            endAt = input("\nEnter your assumed meeting ending time (You will be auto-reconnected to the meeting if it gets disconnected before the ending time). Input in DD-MM-YYYY HH:MM format: ").strip()
+
+            #Parsing the date from str to datetime object & error-handling
+            try: 
+                endAt = datetime.strptime(endAt, '%d-%m-%Y %H:%M')
+            except:
+                print("\nInvalid date-time input. It should be in DD-MM-YYYY HH:MM format (Example: 28-08-2020 21:50). Try again.")
+                continue
+            
+            #checking the validity of end input date-time
+            if(scheduledAt > endAt):
+                print("\nInvalid Date & Time input. Meeting ending time can't be lower than the scheduled start time. Try again.")
+                continue
+        break
+
+    
+
 while 1:    
     #recording option input
-    recordOption = input("\nDo you want to record your meeting (Bandicam required) ? [y/N]").strip()
+    recordOption = input("\nDo you want to record your meeting (Bandicam required) ? [y/N] ").strip()
     if(recordOption == 'y' or recordOption == 'Y'):
         try:
             progPath =  findBandicamPath()
         except:
             print("\nBandicam is not installed in your computer. Please install Bandicam and re-try recording option.")
             continue
+        
+        global endAt
+        global stopRecTime
+        if(endAt != '' ):
+            stopRecTimeBool = input("Do you want to stop recording at " + str(endAt) + "? (y/N) ").strip()
+            if (stopRecTimeBool == 'y' or stopRecTimeBool == 'Y'):
+                stopRecTime = endAt
+            else:
+                while 1:
+                    stopRecTime = input("\nEnter the date-time when you want the recording to stop. Input in DD-MM-YYYY HH:MM format: ").strip()
+                    #Parsing the date from str to datetime object & error-handling
+                    try: 
+                        stopRecTime = datetime.strptime(stopRecTime, '%d-%m-%Y %H:%M')
+                    except:
+                        print("\nInvalid date-time input. It should be in DD-MM-YYYY HH:MM format (Example: 28-08-2020 21:50). Try again.")
+                        continue
+                    
+                    #checking the validity of end input date-time
+                    if(scheduledAt > stopRecTime):
+                        print("\nInvalid Date & Time input. Stop recodring time can't be lower than the scheduled start time. Try again.")
+                        continue
+                    
+                    break
     break
-
+    
 
 
 #scheduling the meeting
