@@ -12,6 +12,7 @@ commandToJoinMeeting = ''
 meetingOn = False
 endAt = ''
 stopRecTime = ''
+stayConnected = ''
 
 #function to join the meeting
 def startMeeting():
@@ -25,6 +26,10 @@ def startMeeting():
         startRecording()
         #start the keep recording function after 3minutes
         threading.Timer(180.0, keepRecording).start()
+        global stopRecTime
+        #scheduling the stop recording function
+        delayInSecs = (stopRecTime - datetime.now()).total_seconds()
+        threading.Timer(delayInSecs, stopRecording).start()
     
     #forming the abs path to zoom bin
     pathToAppData = os.getenv('APPDATA')
@@ -37,6 +42,9 @@ def startMeeting():
     commandToJoinMeeting = absPathToZoomBin+" "+argToPass
 
     joinMeeting()
+
+    if(stayConnected == 'y' or stayConnected == 'Y'):
+        keepMeetingAlive()
     
     #screenshot will be take 60secs after joining meeting
     if(screenshotOption == 'y' or screenshotOption == 'Y'):
@@ -165,8 +173,8 @@ while 1:
         continue
     
     #checking the validity of input date-time
-    now = datetime.now()
-    if(now > scheduledAt):
+
+    if(datetime.now() > scheduledAt):
         print("\nInvalid Date & Time input. Scheduled date-time can't be lower than current date-time. Try again.")
         continue   
     break
@@ -195,23 +203,22 @@ if(screenshotOption == 'y' or screenshotOption == 'Y'):
 
 stayConnected = input("Do you want to auto re-connect to the meeting if it disconnects before a specified time? (y/N) ").strip()
 
-    if(stayConnected == 'y' or stayConnected == 'Y'):
-        while 1:
-            global endAt
-            #ending date-time input
-            endAt = input("\nEnter your assumed meeting ending time (You will be auto-reconnected to the meeting if it gets disconnected before the ending time). Input in DD-MM-YYYY HH:MM format: ").strip()
+if(stayConnected == 'y' or stayConnected == 'Y'):
+    while 1:
+        #ending date-time input
+        endAt = input("\nEnter your assumed meeting ending time (You will be auto-reconnected to the meeting if it gets disconnected before the ending time). Input in DD-MM-YYYY HH:MM format: ").strip()
 
-            #Parsing the date from str to datetime object & error-handling
-            try: 
-                endAt = datetime.strptime(endAt, '%d-%m-%Y %H:%M')
-            except:
-                print("\nInvalid date-time input. It should be in DD-MM-YYYY HH:MM format (Example: 28-08-2020 21:50). Try again.")
-                continue
+        #Parsing the date from str to datetime object & error-handling
+        try: 
+            endAt = datetime.strptime(endAt, '%d-%m-%Y %H:%M')
+        except:
+            print("\nInvalid date-time input. It should be in DD-MM-YYYY HH:MM format (Example: 28-08-2020 21:50). Try again.")
+            continue
             
-            #checking the validity of end input date-time
-            if(scheduledAt > endAt):
-                print("\nInvalid Date & Time input. Meeting ending time can't be lower than the scheduled start time. Try again.")
-                continue
+        #checking the validity of end input date-time
+        if(scheduledAt > endAt):
+            print("\nInvalid Date & Time input. Meeting ending time can't be lower than the scheduled start time. Try again.")
+            continue
         break
 
     
@@ -226,8 +233,6 @@ while 1:
             print("\nBandicam is not installed in your computer. Please install Bandicam and re-try recording option.")
             continue
         
-        global endAt
-        global stopRecTime
         if(endAt != '' ):
             stopRecTimeBool = input("Do you want to stop recording at " + str(endAt) + "? (y/N) ").strip()
             if (stopRecTimeBool == 'y' or stopRecTimeBool == 'Y'):
@@ -253,5 +258,7 @@ while 1:
 
 
 #scheduling the meeting
-delayInSecs = (scheduledAt - now).total_seconds()
+delayInSecs = (scheduledAt - datetime.now()).total_seconds()
 threading.Timer(delayInSecs, startMeeting).start()
+
+
