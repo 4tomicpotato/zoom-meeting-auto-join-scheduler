@@ -4,111 +4,50 @@ import threading
 import subprocess
 import os
 import winreg
+import requests
+import sys
+import wmi
+import time
+
 from pyautogui import screenshot
 
-#global variables
-commandToStartRecording = ''
-commandToJoinMeeting = ''
-meetingOn = False
-endAt = ''
-stopRecTime = ''
-stayConnected = ''
+database = []
 
-#function to join the meeting
-def startMeeting():
-    
-    #turn on the meeting flag
-    global meetingOn
-    meetingOn = True
-    
-    #to start recording
-    if(recordOption == 'y' or recordOption == 'Y'):
-        startRecording()
-        #start the keep recording function after 3minutes
-        threading.Timer(180.0, keepRecording).start()
-        global stopRecTime
-        #scheduling the stop recording function
-        delayInSecs = (stopRecTime - datetime.now()).total_seconds()
-        threading.Timer(delayInSecs, stopRecording).start()
-    
-    #forming the abs path to zoom bin
-    pathToAppData = os.getenv('APPDATA')
-    absPathToZoomBin = pathToAppData + "\\Zoom\\bin\\Zoom.exe"
-    #forming the arg to pass to zoom bin
-    argToPass = '--url="'+zoommtgURL+'"'
+def getZoomPath():
 
-    global commandToJoinMeeting
-    #merging the abs path and arg to form command
-    commandToJoinMeeting = absPathToZoomBin+" "+argToPass
-
-    joinMeeting()
-
-    if(stayConnected == 'y' or stayConnected == 'Y'):
-        keepMeetingAlive()
-    
-    #screenshot will be take 60secs after joining meeting
-    if(screenshotOption == 'y' or screenshotOption == 'Y'):
-        threading.Timer(120.0, takeScreenshot).start()
-
-    #initiate check for meeting ended or not
-    #threading.Timer(10.0, checkIfMeetingEnded).start()
-        
-#function to record the meeting using bandicam
-def startRecording():
-
-    #finding the installation path of bandicam through registry
     try:
-        progPath =  findBandicamPath()
+        #forming the abs path to zoom bin
+        pathToAppData = os.getenv('APPDATA')
     except:
-        print("\nBandicam is not installed in your computer. Please install Bandicam and re-try recording option.")
+        #exit when appdata is not found
+        sys.exit("\nAPPDATA location not found. Make sure you're running the script as administrator.")
 
-    #accessing the global variable
-    global commandToStartRecording
-    #forming the full command to record using bandicam
-    commandToStartRecording = progPath + " /record"
-    hitRecord()
-    
+    absPathToZoomBin = pathToAppData + "\\Zoom\\bin\\Zoom.exe"
+
+    #checking if the zoom binary file exists
+    if(os.path.isfile(absPathToZoomBin)):
+        #return zoom.exe path when found
+        return absPathToZoomBin
+    else:
+        #if Zoom is not found
+        sys.exit("\nZoom.exe not found! Install Zoom Meetings App & restart the program.")
 
 def findBandicamPath():
     #finding the installation path of bandicam through registry
-    storedKey = winreg.OpenKey(winreg.HKEY_CURRENT_USER, "SOFTWARE\\BANDISOFT\\BANDICAM")
-    bandiPath =  winreg.QueryValueEx(storedKey, "ProgramPath")[0]
-    return bandiPath
+    bandiPath =  queryRegValue(r"SOFTWARE\BANDISOFT\BANDICAM", "ProgramPath")
 
-def hitRecord():
-    #supressing the output
-    ONULL = open(os.devnull, 'w')
-    #calling the command to record
-    subprocess.Popen(commandToStartRecording, stdout=ONULL, stderr=ONULL, shell=True)
-
-def joinMeeting():
-    #supressing the output
-    ONULL = open(os.devnull, 'w')
-    #calling the command
-    subprocess.Popen(commandToJoinMeeting, stdout=ONULL, stderr=ONULL, shell=False)
-
-def keepRecording():
-    global meetingOn
-    #check if bandicam is running and meeting is on
-    if(meetingOn and checkProcRunning("bdcam.exe")):
-        hitRecord()
-        threading.Timer(10.0, keepRecording).start()
-
-def stopRecording():
-    #finding the installation path of bandicam through registry
-    try:
-        progPath =  findBandicamPath()
-    except:
-        print("\nBandicam not found. Please manually close the program.")
-
-    #forming the full command to stop recording
-    commandToStopRecording = progPath + " /stop"
-    subprocess.Popen(commandToStopRecording, stdout=ONULL, stderr=ONULL, shell=True)
+    #checking if the bandicam binary file exists
+    if(os.path.isfile(bandiPath)):
+        #return zoom.exe path when found
+        return bandiPath
     
-def keepMeetingAlive():
-    if(datetime.now() < endAt):
-        joinMeeting()
-        threading.Timer(30.0, keepMeetingAlive).start()
+    raise Exception("Sorry, Bandicam not found")
+
+def queryRegValue(regPath, keyName):
+    storedKey = winreg.OpenKey(winreg.HKEY_CURRENT_USER, regPath)
+    keyValue =  winreg.QueryValueEx(storedKey, keyName)[0]
+
+    return keyValue
 
 def checkProcRunning(procName):
     try:
@@ -121,123 +60,317 @@ def checkProcRunning(procName):
         print("Process checking failed. Recording might stop.")
     else:
         return lastLine.lower().startswith(procName.lower())
-    
 
+def terminateProcess(name):
+    f = wmi.WMI()
+    for process in f.Win32_Process():
+        if process.name == name:
+            process.Terminate()
 
-
-def takeScreenshot():
-    try:
-        meetingScreenShot = screenshot()
-        pathToDekstop = os.path.join(os.environ["HOMEPATH"], "Desktop")
-        imageName = "Meeting-"+ str(datetime.strftime(datetime.now(), '%d-%b-%Y-%H-%M-%S')) +".png"
-        meetingScreenShot.save(pathToDekstop+"\\"+imageName)
-    except:
-        print("\nScreenshot failed.")
+def executeCommand(commandToExecute, shellBool, PopenBool = True):
+    if(PopenBool):
+        #supressing the output
+        ONULL = open(os.devnull, 'w')
+        #calling the command
+        subprocess.Popen(commandToExecute, stdout=ONULL, stderr=ONULL, shell=shellBool)
     else:
-        print("\nScreenshot saved to Desktop. Filename: "+imageName)
-        
-        
-while 1:
-    #meeting URL input
-    meetingURL = input("\nEnter the full zoom meeting URL here: ").strip()
+        #supressing the output
+        ONULL = open(os.devnull, 'w')
+        #calling the command
+        return subprocess.check_output(commandToExecute, shell=shellBool).decode().strip()
 
-    #parsing the URL into componenets
-    parsed = parse.urlsplit(meetingURL)
-    #not a zoom meeting
-    if "zoom.us" not in parsed.netloc:
-        print("\nInvalid URL input. Your meeting URL should look like: https://us04web.zoom.us/j/XXXXXXXXXX?pwd=XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX. Try again.")
-        continue
-    zoomServer = parsed.netloc
+def downloadAndInstallBadicam():
+    link = "https://dl.bandicam.com/bdcamsetup.exe"
+
+    pathToDownloads = os.path.join(os.environ["HOMEPATH"], "Downloads")
+    file_name = "bdcamsetup.exe"
+    file_abs_path = pathToDownloads+"\\"+file_name
+
     
-    #checking the validity of input url
-    hashedMeetingPwd = parse.parse_qs(parsed.query)['pwd'][0]
-    if(len(hashedMeetingPwd) != 32):
-        print("\nInvalid pwd part of URL. Your meeting URL should look like: https://us04web.zoom.us/j/XXXXXXXXXX?pwd=XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX. Try again.")
-        continue
+    
+    with open(file_abs_path, "wb") as f:
+            print("\nDownloading Bandicam")
+            try:
+                response = requests.get(link, stream=True)
+                total_length = response.headers.get('content-length').strip()
+            except:
+                print("\nError downloading. Make sure you're connected to the internet.")
+            
+            if total_length is None: # no content length header
+                f.write(response.content)
+                
+            try:
+                fullSize = round(int(total_length) / (1024 * 1024), 1)
+                print("\nSize: " + str(fullSize) + " MB")
 
-    meetingID = parsed.path.split("/")[-1]
-    if(not(meetingID.isdecimal())):
-        print("\nInvalid ID part of URL. Your meeting URL should look like: https://us04web.zoom.us/j/XXXXXXXXXX?pwd=XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX. Try again.")
-        continue
-    break
+            except:
+                print("\nError downloading. Manually download and install Bandicam.")
+                
+            else:
+                dl = 0
+                total_length = int(total_length)
+                for data in response.iter_content(chunk_size=2048):
+                    dl += len(data)
+                    f.write(data)
+                    done = int(50 * dl / total_length)
+                    sys.stdout.write("\r[{0}{1}] {2} MB / {3} MB".format(('=' * done), (' ' * (50-done)), round((dl / (1024 * 1024)), 1), fullSize))    
+                    sys.stdout.flush()
 
-while 1:
-    #scheduling date-time input
-    scheduledAt = input("\nEnter the date & time when the meeting is scheduled to start in DD-MM-YYYY HH:MM format (Ex: 28-08-2020 21:00): ").strip()
 
-    #Parsing the date from str to datetime object & error-handling
-    try: 
-        scheduledAt = datetime.strptime(scheduledAt, '%d-%m-%Y %H:%M')
+    print("\nBandicam download complete!")
+    print("\nInstalling...", end="")
+
+    #installing bandicam
+    argToInstallBandicam = " /S"
+    try:
+        executeCommand(file_abs_path + argToInstallBandicam, True)
     except:
-        print("\nInvalid date-time input. It should be in DD-MM-YYYY HH:MM format. Try again.")
-        continue
-    
-    #checking the validity of input date-time
+        print("\nBandicam installation failed. Install it manually.")
+    else:
+        while 1:
+            print(".", end ="")
+            try:
+                path = findBandicamPath()
+            except:
+                time.sleep(1)
+            else:
+                print("\nInstallation complete!")
+                break
+            
+            time.sleep(3)
 
-    if(datetime.now() > scheduledAt):
-        print("\nInvalid Date & Time input. Scheduled date-time can't be lower than current date-time. Try again.")
-        continue   
-    break
+    initializeBandicamSetup()
+
+def initializeBandicamSetup(firstTime = False):
+    #checking if SOFTWARE\\BANDISOFT\\BANDICAM\\OPTION exists
+    try:
+        storedKey = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"SOFTWARE\BANDISOFT\BANDICAM\OPTION")
+    except:
+        #directory doesn't exist - possible reason : bandicam was not executed even once after installation
+        #possible fix - run bandicam once
+        print("\nPrepearing Bandicam...")
+        try:
+            pathToBandicam = findBandicamPath()
+        except:
+            print("\nBandicam not found. Inatall Bandicam properly.")
+        else:
+            try:
+                #execute bandicam once to get options directory in registry
+                executeCommand(pathToBandicam, True)
+                #wait for the execution
+                time.sleep(5)
+                #call the function again after the fix
+                initializeBandicamSetup(True)
+            except:
+                print("\nError executing Bandicam. Manually open Bandicam & set recording option to full screen mode.")
+    else:
+        
+        try:
+            regPathToOptions = "SOFTWARE\\BANDISOFT\\BANDICAM\\OPTION"
+            key1Name = "nTargetMode"
+            key2Name = "nScreenRecordingSubMode"
+            
+            time.sleep(2)
+            #check the values in current registry
+            regKey1Val = queryRegValue(regPathToOptions, key1Name)
+            regKey2Val = queryRegValue(regPathToOptions, key2Name)
+            #change this reg keys: nScreenRecordingSubMode to 1, nTargetMode to 1 if not already correct
+            print("\nChecking Bandicam configuarations...")
+            if(regKey1Val != 1):
+                #close the software and edit reg key
+                if(firstTime):
+                    try:
+                        time.sleep(8)
+                        if(checkProcRunning("bdcam.exe")):
+                            terminateProcess("bdcam.exe")
+                            firstTime = False
+                    except:
+                        print("\nManually open Bandicam & set recording option to full screen.")
+                            
+                time.sleep(2)
+                executeCommand("REG ADD HKCU\\" + regPathToOptions + " /v " + key1Name + " /t REG_DWORD /d 1 /f", True)
+                
+            if(regKey2Val != 1):
+                #close the software and edit reg key
+                if(firstTime):
+                    try:
+                        time.sleep(8)
+                        if(checkProcRunning("bdcam.exe")):
+                            terminateProcess("bdcam.exe")
+                            firstTime = False
+                        else:
+                            print("..")
+                    except:
+                        print("\nManually open Bandicam & set recording option to full screen.")
+                                
+                time.sleep(2)
+                executeCommand("REG ADD HKCU\\" + regPathToOptions + " /v " + key2Name + " /t REG_DWORD /d 1 /f", True)
+                
+        except:
+            print("Failed to configure Bandicam recording options. Manually open Bandicam & set recording option to full screen.")
+        else:
+            #confirming the values have changed
+            regKey1Val = queryRegValue(regPathToOptions, key1Name)
+            regKey2Val = queryRegValue(regPathToOptions, key2Name)
+            if(regKey1Val != 1 and regKey2Val != 1):
+                print("First order configuration for recording failed, re-trying again.")
+                initializeBandicamSetup()
+            else:  
+                print("\nBandicam is ready to record.")
 
 
-#generating the new url which has zoommtg protocol (will be used to pass as argument to zoom.exe)
-zoommtgURL = "zoommtg://" + zoomServer + "/join?action=join&confno=" + meetingID + "&pwd=" + hashedMeetingPwd
-
-#username Input
-joinAs = input("\nEnter a name to join the meeting as (Optional - if you're already logged in Zoom): ").strip()
-#if username is not empty
-if(len(joinAs) > 0):
-    #url encoding the username
-    joinAs = parse.quote(joinAs)
-    #adding it to zoommtgURL
-    zoommtgURL = zoommtgURL + "&uname=" + joinAs
-
-
-#screenshot option input
-screenshotOption = input("\nDo you want to take a screenshot of your meeting? [y/N] ").strip()
-if(screenshotOption == 'y' or screenshotOption == 'Y'):
-    print("\nScreenshot will be taken 2 minutes after joining the meeting and saved to Desktop")
-
-
-
-
-stayConnected = input("Do you want to auto re-connect to the meeting if it disconnects before a specified time? (y/N) ").strip()
-
-if(stayConnected == 'y' or stayConnected == 'Y'):
+def inputMeetingURL():
     while 1:
-        #ending date-time input
-        endAt = input("\nEnter your assumed meeting ending time (You will be auto-reconnected to the meeting if it gets disconnected before the ending time). Input in DD-MM-YYYY HH:MM format: ").strip()
+        #meeting URL input
+        meetingURL = input("\nEnter the full zoom meeting URL here: ").strip()
+
+        try:
+            #parsing the URL into componenets
+            parsed = parse.urlsplit(meetingURL)
+
+            zoomServer = parsed.netloc
+            
+            #not a zoom meeting
+            if "zoom.us" not in zoomServer:
+                print("\nInvalid URL input. Your meeting URL should look like: https://us04web.zoom.us/j/XXXXXXXXXX?pwd=XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX. Try again.")
+                continue
+
+            
+            #checking the validity of input url
+            hashedMeetingPwd = parse.parse_qs(parsed.query)['pwd'][0]
+            if(len(hashedMeetingPwd) != 32):
+                print("\nInvalid pwd part of URL. Your meeting URL should look like: https://us04web.zoom.us/j/XXXXXXXXXX?pwd=XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX. Try again.")
+                continue
+
+            meetingID = parsed.path.split("/")[-1]
+            if(not(meetingID.isdecimal())):
+                print("\nInvalid ID part of URL. Your meeting URL should look like: https://us04web.zoom.us/j/XXXXXXXXXX?pwd=XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX. Try again.")
+                continue
+        except:
+            print("\nURL parsing failed. Make sure you're providing the proper joining URL.")
+            continue
+
+        #return the url & they keys after input is processed & checked
+        return (meetingURL, zoomServer, meetingID, hashedMeetingPwd)
+
+def inputScheduledAt():
+    while 1:
+        #scheduling date-time input
+        scheduledAt = input("\nEnter the date & time when the meeting is scheduled to start in DD-MM-YYYY HH:MM format (Ex: 28-08-2020 21:00): ").strip()
 
         #Parsing the date from str to datetime object & error-handling
         try: 
-            endAt = datetime.strptime(endAt, '%d-%m-%Y %H:%M')
+            scheduledAt = datetime.strptime(scheduledAt, '%d-%m-%Y %H:%M')
         except:
-            print("\nInvalid date-time input. It should be in DD-MM-YYYY HH:MM format (Example: 28-08-2020 21:50). Try again.")
-            continue
-            
-        #checking the validity of end input date-time
-        if(scheduledAt > endAt):
-            print("\nInvalid Date & Time input. Meeting ending time can't be lower than the scheduled start time. Try again.")
-            continue
-        break
-
-    
-
-while 1:    
-    #recording option input
-    recordOption = input("\nDo you want to record your meeting (Bandicam required) ? [y/N] ").strip()
-    if(recordOption == 'y' or recordOption == 'Y'):
-        try:
-            progPath =  findBandicamPath()
-        except:
-            print("\nBandicam is not installed in your computer. Please install Bandicam and re-try recording option.")
+            print("\nInvalid date-time input. It should be in DD-MM-YYYY HH:MM format. Try again.")
             continue
         
-        if(endAt != '' ):
-            stopRecTimeBool = input("Do you want to stop recording at " + str(endAt) + "? (y/N) ").strip()
-            if (stopRecTimeBool == 'y' or stopRecTimeBool == 'Y'):
-                stopRecTime = endAt
-            else:
+        #checking the validity of input date-time
+        if(datetime.now() > scheduledAt):
+            print("\nInvalid Date & Time input. Scheduled date-time can't be lower than current date-time. Try again.")
+            continue
+        
+        #return the scheduled time after input is processed & checked
+        return scheduledAt
+
+def inputUsername():
+    #username Input
+    joinAs = input("\nEnter a name to join the meeting as (Optional): ").strip()
+
+    if(len(joinAs) < 1):
+        joinAs = ''
+        
+    return joinAs
+
+def inputEnableScreenshot():
+
+    #input loop
+    while 1:
+        #screenshot option input
+        enableScreenshot = input("\nDo you want to take a screenshot of your meeting? (y/n) ").strip().lower()
+        
+        if(enableScreenshot == 'y'):
+            print("\nScreenshot will be taken 2 minutes after scheduled start-time & saved on your computer.")
+            return True
+        elif(enableScreenshot == 'n'):
+            return False
+        else:
+            print("\nInvalid input. Press 'y' for 'Yes' or 'n' for 'No'.")
+            continue
+        
+def inputAutoReConnect(scheduledAt):
+
+    #input loop
+    while 1:
+        #auto-reconnect option input
+        enableAutoReConnect = input("\nIf you have poor-network connection or if your meetings are executed part-wise in consecutive sessions, you can enable auto reconnect feature.\nThis will automatically connect you to the meeting if disconnected, removed or you leave. \nDo you want to auto re-connect to the meeting if it disconnects before a specified time? (y/n) ").strip().lower()
+
+        if(enableAutoReConnect == 'y'):
+            #if auto reconnect is enabled get the reconnect-till time
+            while 1:
+                #ending date-time input
+                endAt = input("\nYou will be auto-reconnected to the meeting if it gets disconnected before the assumed ending time. \nEnter your assumed meeting ending time (in DD-MM-YYYY HH:MM format): ").strip()
+
+                #parsing the date from str to datetime object & error-handling
+                try: 
+                    endAt = datetime.strptime(endAt, '%d-%m-%Y %H:%M')
+                except:
+                    print("\nInvalid date-time input. It should be in DD-MM-YYYY HH:MM format (Example: 28-08-2020 21:50). Try again.")
+                    continue
+                    
+                #checking the validity of end input date-time
+                if(scheduledAt > endAt):
+                    print("\nInvalid Date & Time input. Meeting ending time can't be lower than the scheduled start time. Try again.")
+                    continue
+
+                return (True, endAt)
+            
+        elif(enableAutoReConnect == 'n'):
+            return (False, '')
+        
+        else:
+            print("\nInvalid input. Press 'y' for 'Yes' or 'n' for 'No'.")
+            continue
+
+        
+def inputRecordingOptions(scheduledAt, endAt):
+    #input loop
+    while 1:
+        #recording option input
+        enableRecording = input("\nDo you want to record your meeting (Bandicam required)? (y/n) ").strip().lower()
+        
+        if(enableRecording == 'y'):
+
+            #check if recording tool is installed
+            try:
+                progPath =  findBandicamPath()
+            except:
+                while 1:
+                    downloadBool = input("\nBandicam is required for recording. Do you want to download & install Bandicam (y/n)?").strip().lower()
+                    if(downloadBool == 'y'):
+                        #download and install bandicam
+                        downloadAndInstallBadicam()
+                        break
+                    elif(downloadBool == 'n'):
+                        #disable recording feature when there is no bandicam and user does not want to download it
+                        print("\nRecording feature can't be availed without installing Bandicam.")
+                        return (False, '')
+                    else:
+                        #ask again, on ivalid input
+                        print("\nInvalid input. Press 'y' for 'Yes' or 'n' for 'No'.")
+                        continue
+
+            needInputFlag = 0
+            #if end time is specified, ask if user wants to stop recording at that time
+            if(endAt != ''):
+                stopRecTimeBool = input("\nDo you want to stop the recording at " + str(endAt) + "? (y/N) ").strip().lower()
+                if (stopRecTimeBool == 'y'):
+                    stopRecTime = endAt
+                    return (True, stopRecTime)
+                else:
+                    needInputFlag = 1
+                    
+            if(endAt == '' or needInputFlag == 1):
                 while 1:
                     stopRecTime = input("\nEnter the date-time when you want the recording to stop. Input in DD-MM-YYYY HH:MM format: ").strip()
                     #Parsing the date from str to datetime object & error-handling
@@ -246,19 +379,153 @@ while 1:
                     except:
                         print("\nInvalid date-time input. It should be in DD-MM-YYYY HH:MM format (Example: 28-08-2020 21:50). Try again.")
                         continue
-                    
+                        
                     #checking the validity of end input date-time
                     if(scheduledAt > stopRecTime):
                         print("\nInvalid Date & Time input. Stop recodring time can't be lower than the scheduled start time. Try again.")
                         continue
+                        
+                    return (True, stopRecTime)
                     
-                    break
-    break
+        elif(enableRecording == 'n'):
+            return (False, '')
+        else:
+            print("\nInvalid input. Press 'y' for 'Yes' or 'n' for 'No'.")
+            continue    
+        
+def makeZoommtgURL(zoomServer, meetingID, hashedMeetingPwd, joinAs):
+    #generating the new url which has zoommtg protocol (will be used to pass as argument to zoom.exe)
+    zoommtgURL = "zoommtg://" + zoomServer + "/join?action=join&confno=" + meetingID + "&pwd=" + hashedMeetingPwd
+
+    #adding username to zoommtgURL if available
+    #check if username is empty
+    if(len(joinAs) > 0):
+        try:
+            #url encoding the username
+            joinAs = parse.quote(joinAs)
+        except:
+            print("Problem in URL encoding the username. Default username of your Zoom app will be used.")
+        else:
+            zoommtgURL = zoommtgURL + "&uname=" + joinAs
+
+    return zoommtgURL
+
+    
+def add_new_meeting():
+
+    #clearing screen
+    os.system('cls')
+
+    #get everything about meeting URL
+    meetingURL, zoomServer, meetingID, hashedMeetingPwd = inputMeetingURL()
+
+    #get the scheduled starting time
+    scheduledAt = inputScheduledAt()
+
+    #get the username
+    joinAs = inputUsername()
+
+    #get screenshot option
+    enableScreenshot = inputEnableScreenshot()
+
+    #get auto reconnect details
+    enableAutoReConnect, endAt = inputAutoReConnect(scheduledAt)
+    
+    #get recording options
+    enableRecording, stopRecTime = inputRecordingOptions(scheduledAt, endAt)
+
+    #forming the zoommtg url
+    zoommtgURL = makeZoommtgURL(zoomServer, meetingID, hashedMeetingPwd, joinAs)
+
+    #structuring the data into a dictionary
+    newMeeting = {
+            "scheduled_at" : scheduledAt,
+            "meeting_url" : meetingURL,
+            "join_as" : joinAs,
+            "enable_screenshot" : enableScreenshot,
+            "enable_auto_reconnect" : enableAutoReConnect,
+            "end_at" : endAt,
+            "enable_recording" : enableRecording,
+            "stop_rec_time" : stopRecTime,
+            "zoom_server" : zoomServer,
+            "meeting_id" : meetingID,
+            "hashed_meeting_pwd" : hashedMeetingPwd,
+            "zoommtg_url" : zoommtgURL
+        }
+
+    #adding new meeting details to global database
+    global database
+    database.append(newMeeting.copy())
+
+    print("\nMeeting scheduled.")
+    time.sleep(1)
+
+    show_all_meetings()
     
 
+def show_all_meetings():
 
-#scheduling the meeting
-delayInSecs = (scheduledAt - datetime.now()).total_seconds()
-threading.Timer(delayInSecs, startMeeting).start()
+    #clearing screen
+    os.system('cls')
+
+    print("----------------------------------------------------")
+    print("\nList of all scheduled meetings: ")
+    print ("\n{:<6} {:<22} {:<15} {:<10}".format('SL', 'SCHEDULED_AT', 'MEETING_ID')) 
+
+    global database
+
+    #to prevent any accidental updation of global database, making a copy locally
+    localDatabase = database.copy()
+
+    for i, meeting in enumerate(localDatabase):
+        print ("{:<6} {:<22} {:<15} {:<10}".format(i, str(meeting["scheduled_at"].strftime("%I:%M%p %d-%b-%Y")), meeting["meeting_id"], meeting["joinAs"]))
+    
+
+def remove_a_meeting():
+    print("REMOVE ALL MEETINGS")
+
+def quit_script():
+    print("QUIT SCRIPT")
 
 
+#START
+
+
+print("----------------------------------------------------")
+print("\nInitializing....")
+
+#checking if zoom is installed
+print("Detecting Zoom executable path: " + getZoomPath())
+
+#MAIN MENU
+mainMenu = {
+            1:("Add a meeting schedule", add_new_meeting),
+            2:("View all scheduled meetings", show_all_meetings),
+            3:("Remove a scheduled meeting", remove_a_meeting),
+            4:("Quit", quit_script)
+           }
+
+#print main menu
+print("\nMAIN MENU\n")
+for key in sorted(mainMenu.keys()):
+     print("\t" + str(key) + ":" + mainMenu[key][0])
+
+#choose from main menu
+while 1:
+    try:     
+        option = int(input("\nChoose an option: ").strip())
+    except:
+        #when int conversion fails
+        print("\nInvalid input. Please choose an option between 1 to " + str(len(mainMenu)))
+        continue
+
+    #if the input is out of range
+    if(option < 1 or option > len(mainMenu)):
+        print("\nInvalid input. Please choose an option between 1 to " + str(len(mainMenu)))
+        continue
+    break
+
+#select a function according to input
+mainMenu.get(option)[1]()
+
+wait = input("PRESS ANY KEY TO EXIT")
