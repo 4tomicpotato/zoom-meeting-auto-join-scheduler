@@ -13,6 +13,50 @@ from pyautogui import screenshot
 
 database = []
 
+#function to start the schedule
+def startMeeting(indexOfMeeting):
+    global database
+
+    currentMeeting = database[indexOfMeeting]
+
+    #if there is any older scheduled meeting than the current time (exceot the current index) stop and delete it with logs - kill keep alive functions
+
+    #start recorder if enabled
+        #if badicam available
+            #start the initialize bandicam program to check and set reg keys
+            #start the keep recording function to keep recording even after 10mins
+            #schedule the stop recrding function
+        #else
+            #do not start recording print error
+
+
+    #check for zoom
+        #start the meeting
+        #if reconnect on
+            #start the reconnecting feature and pass the end time
+
+    #start the screenshot timer
+
+
+#function to schedule meeting
+def scheduleMeeting(indexOfMeeting):
+    global database
+    global meetingReferences
+
+    try:
+        #get the difference between currrent time and scheduled time
+        delayInSecs = (database[indexOfMeeting]["scheduled_at"] - datetime.now()).total_seconds()
+        #get the meeting details from database
+        #scheduling function to run after the delay, with argument - it only accepts iterable argument
+        #adding the reference of this scheuled timer to global meeting references  - to cancel it if necesarry
+        database[indexOfMeeting]["reference_to_thread"] = threading.Timer(delayInSecs, startMeeting, [indexOfMeeting])
+        #starting the schedule
+        database[indexOfMeeting]["reference_to_thread"].start()
+    except:
+        return False
+    else:
+        return True
+
 def getZoomPath():
 
     try:
@@ -20,7 +64,9 @@ def getZoomPath():
         pathToAppData = os.getenv('APPDATA')
     except:
         #exit when appdata is not found
-        sys.exit("\nAPPDATA location not found. Make sure you're running the script as administrator.")
+        print("\nAPPDATA location not found. Make sure you're running the script as administrator.")
+        time.sleep(4)
+        sys.exit()
 
     absPathToZoomBin = pathToAppData + "\\Zoom\\bin\\Zoom.exe"
 
@@ -30,7 +76,9 @@ def getZoomPath():
         return absPathToZoomBin
     else:
         #if Zoom is not found
-        sys.exit("\nZoom.exe not found! Install Zoom Meetings App & restart the program.")
+        print("\nZoom.exe not found! Install Zoom Meetings App & restart the program.")
+        time.sleep(4)
+        sys.exit()
 
 def bannerDisp(heading):
 
@@ -444,6 +492,14 @@ def dispAllMeetings():
             print("  {:6} Reconnect if disconnected before: {}".format(" ", str(meeting["end_at"].strftime("%I:%M%p %d-%b-%Y")) ))
         print("  {:6} Meeting URL: {}".format(" ", meeting["meeting_url"]))
 
+def deleteMeeting(indexOfMeeting):
+    global database
+
+    #cancel the schedule first
+    database[indexOfMeeting]["reference_to_thread"].cancel()
+
+    #delete the data
+    del database[indexOfMeeting]
 
     
 def add_new_meeting():
@@ -491,11 +547,22 @@ def add_new_meeting():
             "zoommtg_url" : zoommtgURL
         }
 
+    print("\nProcessing...")
+
     #adding new meeting details to global database
     global database
     database.append(newMeeting.copy())
 
-    print("\nMeeting scheduled.")
+    #getting the index of the meeting appended to database
+    indexOfMeeting = len(database) - 1
+    #passing the newly added meeting index to scheduling function (return true on succes)
+    if(scheduleMeeting(indexOfMeeting)):
+        print("\nMeeting scheduled.")
+    else:
+        print("\nError scheduling meeting. Exiting...")
+        time.sleep(2)
+        sys.exit()
+        
     time.sleep(1)
 
     show_all_meetings()
@@ -541,8 +608,11 @@ def delete_meetings():
                     scheduleStr = str(database[delMeetingIndex-1]["scheduled_at"].strftime("%I:%M%p %d-%b-%Y"))
                     confirmDel = input("\nAre you sure you want to delete meeting no {} (Meeting ID: {}, Scheduled At: {})? [y/N] ".format(delMeetingIndex, meetingID, scheduleStr)).strip().lower()
                     if(confirmDel == 'y'):
-                        del database[delMeetingIndex-1]
                         print("Deleteing..")
+                        try:
+                            deleteMeeting(delMeetingIndex-1)
+                        except:
+                            print("Deletion failed.")
                         time.sleep(1)
                         delete_meetings()
                         break
@@ -622,10 +692,6 @@ def initializeScreen():
     print("Initializing...")
 
     time.sleep(1)
-
-
-#START
-
 
 
 initializeScreen()
