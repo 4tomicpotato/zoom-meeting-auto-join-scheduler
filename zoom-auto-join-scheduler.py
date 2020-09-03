@@ -32,6 +32,16 @@ def getZoomPath():
         #if Zoom is not found
         sys.exit("\nZoom.exe not found! Install Zoom Meetings App & restart the program.")
 
+def bannerDisp(heading):
+
+    banLength = 60
+    banChar = "-"
+    headingLength = len(heading)
+    
+    print("{}".format(banChar * banLength))
+    print("{}{}{}".format(" " * int((banLength / 2) - (headingLength / 2)), heading, " " * int((banLength / 2) - (headingLength / 2))))
+    print("{}".format(banChar * banLength))
+
 def findBandicamPath():
     #finding the installation path of bandicam through registry
     bandiPath =  queryRegValue(r"SOFTWARE\BANDISOFT\BANDICAM", "ProgramPath")
@@ -164,7 +174,6 @@ def initializeBandicamSetup(firstTime = False):
             except:
                 print("\nError executing Bandicam. Manually open Bandicam & set recording option to full screen mode.")
     else:
-        
         try:
             regPathToOptions = "SOFTWARE\\BANDISOFT\\BANDICAM\\OPTION"
             key1Name = "nTargetMode"
@@ -279,6 +288,9 @@ def inputUsername():
 
     if(len(joinAs) < 1):
         joinAs = ''
+
+    if(len(joinAs) > 40):
+        joinAs = joinAs[:40]
         
     return joinAs
 
@@ -410,11 +422,37 @@ def makeZoommtgURL(zoomServer, meetingID, hashedMeetingPwd, joinAs):
 
     return zoommtgURL
 
+def dispAllMeetings():
+    print("\nList of all scheduled meetings: ")
+    print ("\n  {:<6} | {:<21} | {:<15} | {:<40}".format('SL.No', 'SCHEDULED_AT', 'MEETING_ID', 'USERNAME')) 
+
+    global database
+
+    #to prevent any accidental updation of global database, making a copy locally
+    localDatabase = database.copy()
+
+    for i, meeting in enumerate(localDatabase):
+        print("  {:<70}".format( '-' * 63))
+        print ("  {:<6} | {:<21} | {:<15} | {:<40}".format(i+1, str(meeting["scheduled_at"].strftime("%I:%M%p %d-%b-%Y")[:21]),
+                                                                        str(meeting["meeting_id"][:15]), str(meeting["join_as"][:40])))
+        print("  {:6} Screenshot Enabled: {}".format(" ", "Yes" if(meeting["enable_screenshot"]) else "No"))
+        print("  {:6} Recording Enabled: {}".format(" ", "Yes" if(meeting["enable_recording"]) else "No"))
+        if(meeting["enable_recording"]):
+            print("  {:6} Record Till: {}".format(" ", str(meeting["stop_rec_time"].strftime("%I:%M%p %d-%b-%Y")) ))
+        print("  {:6} Auto Reconnect Enabled: {}".format(" ", "Yes" if(meeting["enable_auto_reconnect"]) else "No"))
+        if(meeting["enable_auto_reconnect"]):
+            print("  {:6} Reconnect if disconnected before: {}".format(" ", str(meeting["end_at"].strftime("%I:%M%p %d-%b-%Y")) ))
+        print("  {:6} Meeting URL: {}".format(" ", meeting["meeting_url"]))
+
+
     
 def add_new_meeting():
 
     #clearing screen
     os.system('cls')
+
+    bannerDisp("ADD NEW MEETING")
+    print("\n")
 
     #get everything about meeting URL
     meetingURL, zoomServer, meetingID, hashedMeetingPwd = inputMeetingURL()
@@ -468,64 +506,125 @@ def show_all_meetings():
     #clearing screen
     os.system('cls')
 
-    print("----------------------------------------------------")
-    print("\nList of all scheduled meetings: ")
-    print ("\n{:<6} {:<22} {:<15} {:<10}".format('SL', 'SCHEDULED_AT', 'MEETING_ID')) 
+    bannerDisp("ALL MEETINGS")
+    print("\n")
 
-    global database
+    dispAllMeetings()
 
-    #to prevent any accidental updation of global database, making a copy locally
-    localDatabase = database.copy()
-
-    for i, meeting in enumerate(localDatabase):
-        print ("{:<6} {:<22} {:<15} {:<10}".format(i, str(meeting["scheduled_at"].strftime("%I:%M%p %d-%b-%Y")), meeting["meeting_id"], meeting["joinAs"]))
+    wait = input("\n\nPress any key to go back to Main Menu.")
     
 
-def remove_a_meeting():
-    print("REMOVE ALL MEETINGS")
+def delete_meetings():
+    #clearing screen
+    os.system('cls')
+
+    bannerDisp("DELETE MEETINGS")
+    print("\n")
+
+    dispAllMeetings()
+
+    global database;
+
+    while 1:
+        print("\nTo go back to Main Menu enter 0. \nTo delete a meeting enter it's SL.No ")
+
+        try:
+            delMeetingIndex = int(input("Choose an option: ").strip())
+        except:
+            print("Invalid input. Try again.")
+            continue
+        else:
+            if(delMeetingIndex > 0):
+                #verify if there's a meeting with that sl. no.
+                if(delMeetingIndex <= len(database)):
+                    meetingID = database[delMeetingIndex-1]["meeting_id"]
+                    scheduleStr = str(database[delMeetingIndex-1]["scheduled_at"].strftime("%I:%M%p %d-%b-%Y"))
+                    confirmDel = input("\nAre you sure you want to delete meeting no {} (Meeting ID: {}, Scheduled At: {})? [y/N] ".format(delMeetingIndex, meetingID, scheduleStr)).strip().lower()
+                    if(confirmDel == 'y'):
+                        del database[delMeetingIndex-1]
+                        print("Deleteing..")
+                        time.sleep(1)
+                        delete_meetings()
+                        break
+                    else:
+                        print("Deletion aborted.")
+                        continue
+                else:
+                    print("Invalid SL.No")
+                    continue
+            elif(delMeetingIndex == 0):
+                #to go back to main menu
+                break
+            else:
+                print("Invalid input")
+                continue
 
 def quit_script():
-    print("QUIT SCRIPT")
+    #clearing screen
+    os.system('cls')
+
+    bannerDisp("Author : github.com/r4jdip")
+    print("\n")
+
+    time.sleep(3)
+    sys.exit()
 
 
-#START
+def main_menu():
+
+    #clearing screen
+    os.system('cls')
+
+    bannerDisp("MAIN MENU")
+    print("\n")
+    
+    #MAIN MENU
+    mainMenu = {
+                1:("Add a meeting schedule", add_new_meeting),
+                2:("View all scheduled meetings", show_all_meetings),
+                3:("Delete scheduled meetings", delete_meetings),
+                4:("Quit", quit_script)
+               }
+
+    #print main menu
+    for key in sorted(mainMenu.keys()):
+         print("\t" + str(key) + ":" + mainMenu[key][0])
+
+    #choose from main menu
+    while 1:
+        try:     
+            option = int(input("\nChoose an option: ").strip())
+        except:
+            #when int conversion fails
+            print("\nInvalid input. Please choose an option between 1 to " + str(len(mainMenu)))
+            continue
+
+        #if the input is out of range
+        if(option < 1 or option > len(mainMenu)):
+            print("\nInvalid input. Please choose an option between 1 to " + str(len(mainMenu)))
+            continue
+        break
+
+    #select a function according to input
+    mainMenu.get(option)[1]()
 
 
-print("----------------------------------------------------")
-print("\nInitializing....")
+def initializeScreen():
 
-#checking if zoom is installed
-print("Detecting Zoom executable path: " + getZoomPath())
+    #clearing screen
+    os.system('cls')
+    
+    print("\nChecking Zoom installation....")
 
-#MAIN MENU
-mainMenu = {
-            1:("Add a meeting schedule", add_new_meeting),
-            2:("View all scheduled meetings", show_all_meetings),
-            3:("Remove a scheduled meeting", remove_a_meeting),
-            4:("Quit", quit_script)
-           }
+    #checking if zoom is installed
+    print("Detecting Zoom executable path: " + getZoomPath())
 
-#print main menu
-print("\nMAIN MENU\n")
-for key in sorted(mainMenu.keys()):
-     print("\t" + str(key) + ":" + mainMenu[key][0])
+    print("Initializing...")
 
-#choose from main menu
+    time.sleep(1)
+
+
+initializeScreen()
 while 1:
-    try:     
-        option = int(input("\nChoose an option: ").strip())
-    except:
-        #when int conversion fails
-        print("\nInvalid input. Please choose an option between 1 to " + str(len(mainMenu)))
-        continue
-
-    #if the input is out of range
-    if(option < 1 or option > len(mainMenu)):
-        print("\nInvalid input. Please choose an option between 1 to " + str(len(mainMenu)))
-        continue
-    break
-
-#select a function according to input
-mainMenu.get(option)[1]()
-
+    main_menu()
 wait = input("PRESS ANY KEY TO EXIT")
