@@ -624,6 +624,10 @@ def initializeScreen():
     time.sleep(1)
 
 
+#START
+
+
+
 initializeScreen()
 while 1:
     main_menu()
