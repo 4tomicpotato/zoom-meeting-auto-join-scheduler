@@ -37,6 +37,8 @@ def startMeeting(indexOfMeeting):
 
     #start the screenshot timer
 
+    #details about how to stop the function
+
 
 #function to schedule meeting
 def scheduleMeeting(indexOfMeeting):
