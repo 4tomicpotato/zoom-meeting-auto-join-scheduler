@@ -60,7 +60,6 @@ def keepRecording(stopRecTime, pathToBandicam):
         stopRecording()
 
 def stopRecording():
-    print("DEBUG: IN STOP REC")
     #finding the installation path of bandicam through registry
     try:
         pathToBandicam = findBandicamPath()
@@ -636,13 +635,13 @@ def add_new_meeting():
     indexOfMeeting = len(database) - 1
     #passing the newly added meeting index to scheduling function (return true on succes)
     if(scheduleMeeting(indexOfMeeting)):
-        print("\nMeeting scheduled.")
+        print("\nMeeting scheduled. \nFetching database...")
     else:
         print("\nError scheduling meeting. Exiting...")
-        time.sleep(2)
+        time.sleep(3)
         sys.exit()
         
-    time.sleep(1)
+    time.sleep(3)
 
     show_all_meetings()
     
@@ -657,7 +656,7 @@ def show_all_meetings():
 
     dispAllMeetings()
 
-    #wait = input("\n\nPress any key to go back to Main Menu.")
+    wait = input("\n\nPress any key to go back to Main Menu.")
     
 
 def delete_meetings():
@@ -774,6 +773,6 @@ def initializeScreen():
 
 
 initializeScreen()
-#while 1:
-main_menu()
-#wait = input("PRESS ANY KEY TO EXIT")
+while 1:
+    main_menu()
+wait = input("PRESS ANY KEY TO EXIT")
