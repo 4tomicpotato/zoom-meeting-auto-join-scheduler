@@ -13,21 +13,92 @@ from pyautogui import screenshot
 
 database = []
 
+def recordingFunction(enableRecording, stopRecTime):
+
+    try:
+        #start recorder if enabled
+        if(enableRecording):
+            #if badicam available
+            try:
+                pathToBandicam = findBandicamPath()
+            except:
+                print("\nRecording can't be enabled - Bandicam not found.")
+                return False
+            else:
+                #start the initialize bandicam program to check and set reg keys
+                initializeBandicamSetup()
+                #start recording
+                startRecording(pathToBandicam)
+                time.sleep(5)
+                #start the keep recording function to keep recording even after 10mins
+                keepRecording(stopRecTime, pathToBandicam)
+                #the stop recrding function is integrated inside keep recording function
+                print("Recording...")
+    except Exception as e:
+        print("Recording failed! Error: {}".format(e))
+
+#function to record the meeting using bandicam
+def startRecording(pathToBandicam):
+
+    #forming the full command to record using bandicam
+    commandToStartRecording = '"' + pathToBandicam + '"' + " /record"
+    try:
+        executeCommand(commandToStartRecording, True)
+    except:
+        print("Recording failed. Please manually start recording.")
+    
+
+def keepRecording(stopRecTime, pathToBandicam):
+    #check if bandicam is running and it's not past the stop time
+    if((stopRecTime > datetime.now()) and checkProcRunning("bdcam.exe")):
+        startRecording(pathToBandicam)
+        #call itself with args after every inverval
+        threading.Timer(10.0, keepRecording, [stopRecTime, pathToBandicam]).start()
+    else:
+        print("Stopping recording..")
+        #call stop recording
+        stopRecording()
+
+def stopRecording():
+    print("DEBUG: IN STOP REC")
+    #finding the installation path of bandicam through registry
+    try:
+        pathToBandicam = findBandicamPath()
+        outputPath =  findBandicamPath(False)
+    except:
+        print("\nBandicam not found. Please manually stop recording.")
+    else:
+        #stop recording
+        commandToStopRecording = '"' + pathToBandicam + '"' + " /stop"
+        try:
+            executeCommand(commandToStopRecording, True)
+            print("\nSaving video(s) to: {}".format(outputPath.strip()))
+        except:
+            print("Auto stop failed. Please manually stop recording.")
+        else:
+            print("Recorded video(s) saved.")
+    
+
 #function to start the schedule
 def startMeeting(indexOfMeeting):
+
+    #clearing screen
+    os.system('cls')
+
+    bannerDisp("MEETING IN PROGRESS")
+    print("\n")
+    
     global database
 
     currentMeeting = database[indexOfMeeting]
 
-    #if there is any older scheduled meeting than the current time (exceot the current index) stop and delete it with logs - kill keep alive functions
 
-    #start recorder if enabled
-        #if badicam available
-            #start the initialize bandicam program to check and set reg keys
-            #start the keep recording function to keep recording even after 10mins
-            #schedule the stop recrding function
-        #else
-            #do not start recording print error
+    #if there is any older scheduled meeting than the current time (except the current index) stop and delete it with logs - kill keep alive functions
+
+
+    #starting the recording if enabled
+    recordingFunction(currentMeeting["enable_recording"], currentMeeting["stop_rec_time"])
+    
 
 
     #check for zoom
@@ -43,7 +114,6 @@ def startMeeting(indexOfMeeting):
 #function to schedule meeting
 def scheduleMeeting(indexOfMeeting):
     global database
-    global meetingReferences
 
     try:
         #get the difference between currrent time and scheduled time
@@ -92,13 +162,18 @@ def bannerDisp(heading):
     print("{}{}{}".format(" " * int((banLength / 2) - (headingLength / 2)), heading, " " * int((banLength / 2) - (headingLength / 2))))
     print("{}".format(banChar * banLength))
 
-def findBandicamPath():
-    #finding the installation path of bandicam through registry
-    bandiPath =  queryRegValue(r"SOFTWARE\BANDISOFT\BANDICAM", "ProgramPath")
+def findBandicamPath(findInstallPath = True):
 
-    #checking if the bandicam binary file exists
-    if(os.path.isfile(bandiPath)):
-        #return zoom.exe path when found
+    if(findInstallPath):
+        #finding the installation path of bandicam through registry
+        bandiPath = queryRegValue(r"SOFTWARE\BANDISOFT\BANDICAM", "ProgramPath")
+        #checking if the bandicam binary file exists
+        if(os.path.isfile(bandiPath)):
+            #return zoom.exe path when found
+            return bandiPath
+    else:
+        #to return the video saving path
+        bandiPath = queryRegValue(r"SOFTWARE\BANDISOFT\BANDICAM\OPTION", "sOutputFolder")
         return bandiPath
     
     raise Exception("Sorry, Bandicam not found")
@@ -428,6 +503,7 @@ def inputRecordingOptions(scheduledAt, endAt):
                 stopRecTimeBool = input("\nDo you want to stop the recording at " + str(endAt) + "? (y/N) ").strip().lower()
                 if (stopRecTimeBool == 'y'):
                     stopRecTime = endAt
+                    print("WARNING: If the recording is greater than 10 minutes, it'll be saved as multiple video files of 10mins each.\nAlso, some seconds (1-10) of footage between two consecutive video files might be missing.\nYou can upgrade to Bandicam Pro to remove this issue.")
                     return (True, stopRecTime)
                 else:
                     needInputFlag = 1
@@ -446,7 +522,8 @@ def inputRecordingOptions(scheduledAt, endAt):
                     if(scheduledAt > stopRecTime):
                         print("\nInvalid Date & Time input. Stop recodring time can't be lower than the scheduled start time. Try again.")
                         continue
-                        
+
+                    print("WARNING: If the recording is greater than 10 minutes, it'll be saved as multiple video files of 10mins each.\nAlso, some seconds (1-10) of footage between two consecutive video files might be missing.\nYou can upgrade to Bandicam Pro to remove this issue.")    
                     return (True, stopRecTime)
                     
         elif(enableRecording == 'n'):
@@ -580,7 +657,7 @@ def show_all_meetings():
 
     dispAllMeetings()
 
-    wait = input("\n\nPress any key to go back to Main Menu.")
+    #wait = input("\n\nPress any key to go back to Main Menu.")
     
 
 def delete_meetings():
@@ -697,6 +774,6 @@ def initializeScreen():
 
 
 initializeScreen()
-while 1:
-    main_menu()
-wait = input("PRESS ANY KEY TO EXIT")
+#while 1:
+main_menu()
+#wait = input("PRESS ANY KEY TO EXIT")
