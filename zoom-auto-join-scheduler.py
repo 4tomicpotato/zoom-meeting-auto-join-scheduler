@@ -1,116 +1,17 @@
+import modules.common_funcs_lib as cfl
+
 from datetime import datetime
 from urllib import parse
 import threading
-import subprocess
 import os
-import winreg
 import requests
 import sys
-import wmi
 import time
-
-from pyautogui import screenshot
 
 database = []
 
-def recordingFunction(enableRecording, stopRecTime):
-
-    try:
-        #start recorder if enabled
-        if(enableRecording):
-            #if badicam available
-            try:
-                pathToBandicam = findBandicamPath()
-            except:
-                print("\nRecording can't be enabled - Bandicam not found.")
-                return False
-            else:
-                #start the initialize bandicam program to check and set reg keys
-                initializeBandicamSetup()
-                #start recording
-                startRecording(pathToBandicam)
-                time.sleep(5)
-                #start the keep recording function to keep recording even after 10mins
-                keepRecording(stopRecTime, pathToBandicam)
-                #the stop recrding function is integrated inside keep recording function
-                print("Recording...")
-    except Exception as e:
-        print("Recording failed! Error: {}".format(e))
-
-#function to record the meeting using bandicam
-def startRecording(pathToBandicam):
-
-    #forming the full command to record using bandicam
-    commandToStartRecording = '"' + pathToBandicam + '"' + " /record"
-    try:
-        executeCommand(commandToStartRecording, True)
-    except:
-        print("Recording failed. Please manually start recording.")
-    
-
-def keepRecording(stopRecTime, pathToBandicam):
-    #check if bandicam is running and it's not past the stop time
-    if((stopRecTime > datetime.now()) and checkProcRunning("bdcam.exe")):
-        startRecording(pathToBandicam)
-        #call itself with args after every inverval
-        threading.Timer(10.0, keepRecording, [stopRecTime, pathToBandicam]).start()
-    else:
-        print("Stopping recording..")
-        #call stop recording
-        stopRecording()
-
-def stopRecording():
-    #finding the installation path of bandicam through registry
-    try:
-        pathToBandicam = findBandicamPath()
-        outputPath =  findBandicamPath(False)
-    except:
-        print("\nBandicam not found. Please manually stop recording.")
-    else:
-        #stop recording
-        commandToStopRecording = '"' + pathToBandicam + '"' + " /stop"
-        try:
-            executeCommand(commandToStopRecording, True)
-            print("\nSaving video(s) to: {}".format(outputPath.strip()))
-        except:
-            print("Auto stop failed. Please manually stop recording.")
-        else:
-            print("Recorded video(s) saved.")
-    
-
-#function to start the schedule
-def startMeeting(indexOfMeeting):
-
-    #clearing screen
-    os.system('cls')
-
-    bannerDisp("MEETING IN PROGRESS")
-    print("\n")
-    
-    global database
-
-    currentMeeting = database[indexOfMeeting]
-
-
-    #if there is any older scheduled meeting than the current time (except the current index) stop and delete it with logs - kill keep alive functions
-
-
-    #starting the recording if enabled
-    recordingFunction(currentMeeting["enable_recording"], currentMeeting["stop_rec_time"])
-    
-
-
-    #check for zoom
-        #start the meeting
-        #if reconnect on
-            #start the reconnecting feature and pass the end time
-
-    #start the screenshot timer
-
-    #details about how to stop the function
-
-
 #function to schedule meeting
+#CHANGE
 def scheduleMeeting(indexOfMeeting):
     global database
 
@@ -128,90 +29,7 @@ def scheduleMeeting(indexOfMeeting):
     else:
         return True
 
-def getZoomPath():
 
-    try:
-        #forming the abs path to zoom bin
-        pathToAppData = os.getenv('APPDATA')
-    except:
-        #exit when appdata is not found
-        print("\nAPPDATA location not found. Make sure you're running the script as administrator.")
-        time.sleep(4)
-        sys.exit()
-
-    absPathToZoomBin = pathToAppData + "\\Zoom\\bin\\Zoom.exe"
-
-    #checking if the zoom binary file exists
-    if(os.path.isfile(absPathToZoomBin)):
-        #return zoom.exe path when found
-        return absPathToZoomBin
-    else:
-        #if Zoom is not found
-        print("\nZoom.exe not found! Install Zoom Meetings App & restart the program.")
-        time.sleep(4)
-        sys.exit()
-
-def bannerDisp(heading):
-
-    banLength = 60
-    banChar = "-"
-    headingLength = len(heading)
-    
-    print("{}".format(banChar * banLength))
-    print("{}{}{}".format(" " * int((banLength / 2) - (headingLength / 2)), heading, " " * int((banLength / 2) - (headingLength / 2))))
-    print("{}".format(banChar * banLength))
-
-def findBandicamPath(findInstallPath = True):
-
-    if(findInstallPath):
-        #finding the installation path of bandicam through registry
-        bandiPath = queryRegValue(r"SOFTWARE\BANDISOFT\BANDICAM", "ProgramPath")
-        #checking if the bandicam binary file exists
-        if(os.path.isfile(bandiPath)):
-            #return zoom.exe path when found
-            return bandiPath
-    else:
-        #to return the video saving path
-        bandiPath = queryRegValue(r"SOFTWARE\BANDISOFT\BANDICAM\OPTION", "sOutputFolder")
-        return bandiPath
-    
-    raise Exception("Sorry, Bandicam not found")
-
-def queryRegValue(regPath, keyName):
-    storedKey = winreg.OpenKey(winreg.HKEY_CURRENT_USER, regPath)
-    keyValue =  winreg.QueryValueEx(storedKey, keyName)[0]
-
-    return keyValue
-
-def checkProcRunning(procName):
-    try:
-        callTasklist = 'TASKLIST', '/FI', 'imagename eq %s' % procName
-        result = subprocess.check_output(callTasklist, shell=True).decode()
-        # checking end of string for proc name
-        lastLine = result.strip().split('\r\n')[-1]
-        # because Fail message could be translated
-    except:
-        print("Process checking failed. Recording might stop.")
-    else:
-        return lastLine.lower().startswith(procName.lower())
-
-def terminateProcess(name):
-    f = wmi.WMI()
-    for process in f.Win32_Process():
-        if process.name == name:
-            process.Terminate()
-
-def executeCommand(commandToExecute, shellBool, PopenBool = True):
-    if(PopenBool):
-        #supressing the output
-        ONULL = open(os.devnull, 'w')
-        #calling the command
-        subprocess.Popen(commandToExecute, stdout=ONULL, stderr=ONULL, shell=shellBool)
-    else:
-        #supressing the output
-        ONULL = open(os.devnull, 'w')
-        #calling the command
-        return subprocess.check_output(commandToExecute, shell=shellBool).decode().strip()
 
 def downloadAndInstallBadicam():
     link = "https://dl.bandicam.com/bdcamsetup.exe"
@@ -257,14 +75,14 @@ def downloadAndInstallBadicam():
     #installing bandicam
     argToInstallBandicam = " /S"
     try:
-        executeCommand(file_abs_path + argToInstallBandicam, True)
+        cfl.executeCommand(file_abs_path + argToInstallBandicam, True)
     except:
         print("\nBandicam installation failed. Install it manually.")
     else:
         while 1:
             print(".", end ="")
             try:
-                path = findBandicamPath()
+                path = cfl.findBandicamPath()
             except:
                 time.sleep(1)
             else:
@@ -273,83 +91,7 @@ def downloadAndInstallBadicam():
             
             time.sleep(3)
 
-    initializeBandicamSetup()
-
-def initializeBandicamSetup(firstTime = False):
-    #checking if SOFTWARE\\BANDISOFT\\BANDICAM\\OPTION exists
-    try:
-        storedKey = winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"SOFTWARE\BANDISOFT\BANDICAM\OPTION")
-    except:
-        #directory doesn't exist - possible reason : bandicam was not executed even once after installation
-        #possible fix - run bandicam once
-        print("\nPrepearing Bandicam...")
-        try:
-            pathToBandicam = findBandicamPath()
-        except:
-            print("\nBandicam not found. Inatall Bandicam properly.")
-        else:
-            try:
-                #execute bandicam once to get options directory in registry
-                executeCommand(pathToBandicam, True)
-                #wait for the execution
-                time.sleep(5)
-                #call the function again after the fix
-                initializeBandicamSetup(True)
-            except:
-                print("\nError executing Bandicam. Manually open Bandicam & set recording option to full screen mode.")
-    else:
-        try:
-            regPathToOptions = "SOFTWARE\\BANDISOFT\\BANDICAM\\OPTION"
-            key1Name = "nTargetMode"
-            key2Name = "nScreenRecordingSubMode"
-            
-            time.sleep(2)
-            #check the values in current registry
-            regKey1Val = queryRegValue(regPathToOptions, key1Name)
-            regKey2Val = queryRegValue(regPathToOptions, key2Name)
-            #change this reg keys: nScreenRecordingSubMode to 1, nTargetMode to 1 if not already correct
-            print("\nChecking Bandicam configuarations...")
-            if(regKey1Val != 1):
-                #close the software and edit reg key
-                if(firstTime):
-                    try:
-                        time.sleep(8)
-                        if(checkProcRunning("bdcam.exe")):
-                            terminateProcess("bdcam.exe")
-                            firstTime = False
-                    except:
-                        print("\nManually open Bandicam & set recording option to full screen.")
-                            
-                time.sleep(2)
-                executeCommand("REG ADD HKCU\\" + regPathToOptions + " /v " + key1Name + " /t REG_DWORD /d 1 /f", True)
-                
-            if(regKey2Val != 1):
-                #close the software and edit reg key
-                if(firstTime):
-                    try:
-                        time.sleep(8)
-                        if(checkProcRunning("bdcam.exe")):
-                            terminateProcess("bdcam.exe")
-                            firstTime = False
-                        else:
-                            print("..")
-                    except:
-                        print("\nManually open Bandicam & set recording option to full screen.")
-                                
-                time.sleep(2)
-                executeCommand("REG ADD HKCU\\" + regPathToOptions + " /v " + key2Name + " /t REG_DWORD /d 1 /f", True)
-                
-        except:
-            print("Failed to configure Bandicam recording options. Manually open Bandicam & set recording option to full screen.")
-        else:
-            #confirming the values have changed
-            regKey1Val = queryRegValue(regPathToOptions, key1Name)
-            regKey2Val = queryRegValue(regPathToOptions, key2Name)
-            if(regKey1Val != 1 and regKey2Val != 1):
-                print("First order configuration for recording failed, re-trying again.")
-                initializeBandicamSetup()
-            else:  
-                print("\nBandicam is ready to record.")
+    cfl.initializeBandicamSetup()
 
 
 def inputMeetingURL():
@@ -386,6 +128,7 @@ def inputMeetingURL():
         #return the url & they keys after input is processed & checked
         return (meetingURL, zoomServer, meetingID, hashedMeetingPwd)
 
+
 def inputScheduledAt():
     while 1:
         #scheduling date-time input
@@ -406,6 +149,7 @@ def inputScheduledAt():
         #return the scheduled time after input is processed & checked
         return scheduledAt
 
+
 def inputUsername():
     #username Input
     joinAs = input("\nEnter a name to join the meeting as (Optional): ").strip()
@@ -417,6 +161,7 @@ def inputUsername():
         joinAs = joinAs[:40]
         
     return joinAs
+
 
 def inputEnableScreenshot():
 
@@ -433,6 +178,7 @@ def inputEnableScreenshot():
         else:
             print("\nInvalid input. Press 'y' for 'Yes' or 'n' for 'No'.")
             continue
+
         
 def inputAutoReConnect(scheduledAt):
 
@@ -479,7 +225,7 @@ def inputRecordingOptions(scheduledAt, endAt):
 
             #check if recording tool is installed
             try:
-                progPath =  findBandicamPath()
+                progPath =  cfl.findBandicamPath()
             except:
                 while 1:
                     downloadBool = input("\nBandicam is required for recording. Do you want to download & install Bandicam (y/n)?").strip().lower()
@@ -530,6 +276,7 @@ def inputRecordingOptions(scheduledAt, endAt):
         else:
             print("\nInvalid input. Press 'y' for 'Yes' or 'n' for 'No'.")
             continue    
+
         
 def makeZoommtgURL(zoomServer, meetingID, hashedMeetingPwd, joinAs):
     #generating the new url which has zoommtg protocol (will be used to pass as argument to zoom.exe)
@@ -548,16 +295,16 @@ def makeZoommtgURL(zoomServer, meetingID, hashedMeetingPwd, joinAs):
 
     return zoommtgURL
 
+
+
 def dispAllMeetings():
     print("\nList of all scheduled meetings: ")
     print ("\n  {:<6} | {:<21} | {:<15} | {:<40}".format('SL.No', 'SCHEDULED_AT', 'MEETING_ID', 'USERNAME')) 
 
     global database
+    database = cfl.loadDatabase()
 
-    #to prevent any accidental updation of global database, making a copy locally
-    localDatabase = database.copy()
-
-    for i, meeting in enumerate(localDatabase):
+    for i, meeting in enumerate(database):
         print("  {:<70}".format( '-' * 63))
         print ("  {:<6} | {:<21} | {:<15} | {:<40}".format(i+1, str(meeting["scheduled_at"].strftime("%I:%M%p %d-%b-%Y")[:21]),
                                                                         str(meeting["meeting_id"][:15]), str(meeting["join_as"][:40])))
@@ -570,14 +317,18 @@ def dispAllMeetings():
             print("  {:6} Reconnect if disconnected before: {}".format(" ", str(meeting["end_at"].strftime("%I:%M%p %d-%b-%Y")) ))
         print("  {:6} Meeting URL: {}".format(" ", meeting["meeting_url"]))
 
+
+#CHANGE
 def deleteMeeting(indexOfMeeting):
     global database
 
     #cancel the schedule first
-    database[indexOfMeeting]["reference_to_thread"].cancel()
+    #database[indexOfMeeting]["reference_to_thread"].cancel()
 
     #delete the data
     del database[indexOfMeeting]
+
+    cfl.saveDatabase(database)
 
     
 def add_new_meeting():
@@ -585,7 +336,7 @@ def add_new_meeting():
     #clearing screen
     os.system('cls')
 
-    bannerDisp("ADD NEW MEETING")
+    cfl.bannerDisp("ADD NEW MEETING")
     print("\n")
 
     #get everything about meeting URL
@@ -628,13 +379,18 @@ def add_new_meeting():
     print("\nProcessing...")
 
     #adding new meeting details to global database
+    cfl.addToDatabase(newMeeting.copy())
+
+    #update the global database in current script
     global database
-    database.append(newMeeting.copy())
+    database = cfl.loadDatabase()
 
     #getting the index of the meeting appended to database
     indexOfMeeting = len(database) - 1
     #passing the newly added meeting index to scheduling function (return true on succes)
-    if(scheduleMeeting(indexOfMeeting)):
+    #if(scheduleMeeting(indexOfMeeting)):
+    #CHANGE
+    if(True):
         print("\nMeeting scheduled. \nFetching database...")
     else:
         print("\nError scheduling meeting. Exiting...")
@@ -651,7 +407,7 @@ def show_all_meetings():
     #clearing screen
     os.system('cls')
 
-    bannerDisp("ALL MEETINGS")
+    cfl.bannerDisp("ALL MEETINGS")
     print("\n")
 
     dispAllMeetings()
@@ -663,12 +419,12 @@ def delete_meetings():
     #clearing screen
     os.system('cls')
 
-    bannerDisp("DELETE MEETINGS")
+    cfl.bannerDisp("DELETE MEETINGS")
     print("\n")
 
     dispAllMeetings()
 
-    global database;
+    global database
 
     while 1:
         print("\nTo go back to Main Menu enter 0. \nTo delete a meeting enter it's SL.No ")
@@ -689,8 +445,8 @@ def delete_meetings():
                         print("Deleteing..")
                         try:
                             deleteMeeting(delMeetingIndex-1)
-                        except:
-                            print("Deletion failed.")
+                        except Exception as e:
+                            print("Deletion failed. {}".format(e))
                         time.sleep(1)
                         delete_meetings()
                         break
@@ -711,7 +467,7 @@ def quit_script():
     #clearing screen
     os.system('cls')
 
-    bannerDisp("Author : github.com/r4jdip")
+    cfl.bannerDisp("Author : github.com/r4jdip")
     print("\n")
 
     time.sleep(3)
@@ -723,7 +479,7 @@ def main_menu():
     #clearing screen
     os.system('cls')
 
-    bannerDisp("MAIN MENU")
+    cfl.bannerDisp("MAIN MENU")
     print("\n")
     
     #MAIN MENU
@@ -765,7 +521,7 @@ def initializeScreen():
     print("\nChecking Zoom installation....")
 
     #checking if zoom is installed
-    print("Detecting Zoom executable path: " + getZoomPath())
+    print("Detecting Zoom executable path: " + cfl.getZoomPath())
 
     print("Initializing...")
 
