@@ -9,7 +9,6 @@ import winreg
 import subprocess
 from datetime import datetime
 
-
 #function to display banner
 def bannerDisp(heading):
 
@@ -54,29 +53,36 @@ def addToDatabase(newMeetingDict):
 
 #function to save to database
 def saveDatabase(data):
+
+    #the path where this file is kept (modules)
+    cflPath = os.path.dirname(os.path.realpath(__file__))
+
+    #variable to detect which script called it
+        
     dataPath = ''
     try:
-        if not os.path.exists('storage'):
-            os.makedirs('storage')
-    except:
-        pass
+        if not os.path.exists(cflPath+'\\storage'):
+            os.makedirs(cflPath+'\\storage')
+    except Exception as e:
+        print("Error creating database: {}\nExiting...".format(e))
+        time.sleep(5)
+        sys.exit()
     else:
-        dataPath = 'storage\\'
-         
-    with open(dataPath+"database.json", "w") as outfile:  
-        json.dump(data, outfile, default=str)
+        with open(cflPath+'\\storage\\database.json', "w") as outfile:  
+            json.dump(data, outfile, default=str)
 
 #function to read from database
-def loadDatabase(): 
+def loadDatabase():
+    #the path where this file is kept (modules)
+    cflPath = os.path.dirname(os.path.realpath(__file__))
+
     try:
-        dataPath = ''
-        
-        if os.path.exists('storage'):
-            dataPath = 'storage\\'
+        fullPath = cflPath + '\\storage\\database.json'
             
-        with open(dataPath+'database.json') as infile: 
+        with open(fullPath) as infile: 
             database = json.load(infile)
-    except:
+    except Exception as e:
+        #print("Database error: {}".format(e))
         database = []
         return database
     else:
