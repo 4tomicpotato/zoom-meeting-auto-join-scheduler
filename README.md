@@ -1,4 +1,4 @@
 # zoom-meeting-auto-join-scheduler
 
-Join scheduled zoom meetings automatically.
+Join & record scheduled zoom meetings automatically.
 
