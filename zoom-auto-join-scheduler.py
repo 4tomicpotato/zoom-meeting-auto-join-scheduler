@@ -1,5 +1,4 @@
 import modules.common_funcs_lib as cfl
-
 from datetime import datetime
 from urllib import parse
 import threading
@@ -11,23 +10,41 @@ import time
 database = []
 
 #function to schedule meeting
-#CHANGE
+
 def scheduleMeeting(indexOfMeeting):
+    #schedule the meeting in windows task scheduler
+
+    #load the meeting time
     global database
+    currentMeeting = database[indexOfMeeting]
+
+    #load the scheduled date in dd/mm/yyyy format (for cmd compatibility)
+    scheduleDate = currentMeeting["scheduled_at"].strftime("%d/%m/%Y")
+    #load the scheduled time in HH:MM:SS format (for cmd compatibility)
+    scheduleTime = currentMeeting["scheduled_at"].strftime("%H:%M:%S")
+    #generating the taskname
+    taskName = "AutoZoomMeeting" + str(indexOfMeeting)
 
     try:
-        #get the difference between currrent time and scheduled time
-        delayInSecs = (database[indexOfMeeting]["scheduled_at"] - datetime.now()).total_seconds()
-        #get the meeting details from database
-        #scheduling function to run after the delay, with argument - it only accepts iterable argument
-        #adding the reference of this scheuled timer to global meeting references  - to cancel it if necesarry
-        database[indexOfMeeting]["reference_to_thread"] = threading.Timer(delayInSecs, startMeeting, [indexOfMeeting])
-        #starting the schedule
-        database[indexOfMeeting]["reference_to_thread"].start()
-    except:
+        #load sys variables
+        pathToPythonExec = sys.executable
+        currentDir = os.path.dirname(os.path.realpath(__file__))
+        execModulePath = currentDir + "\\modules\\meeting_exec_module.py"
+
+    except Exception as e:
+        print("Scheuling meeting failed! Error: {}".format(e))
         return False
     else:
-        return True
+        #SCHTASKS /CREATE /SC ONCE /TN "TaskName1" /TR "\"C:\Program Files (x86)\Python38-32\python.exe\" \"C:\Users\CompName\Desktop\hello.py\" 1" /SD 06/09/2020 /ST 02:26:00 /F
+        commandToSchedule = 'SCHTASKS /CREATE /SC ONCE /TN "'+ taskName +'" /TR "\\"'+ pathToPythonExec +'\\" \\"'+ execModulePath +'\\" '+ str(indexOfMeeting) +'" /SD '+ scheduleDate +' /ST '+scheduleTime+' /F'
+        try:
+            cfl.executeCommand(commandToSchedule, True)
+        except Exception as e:
+            print("Scheuling meeting failed! Error: {}".format(e))
+            return False
+        else:
+            return True
+
 
 
 
@@ -385,20 +402,20 @@ def add_new_meeting():
     global database
     database = cfl.loadDatabase()
 
+    print("Meeting saved.\nScheduling meeting...")
+
     #getting the index of the meeting appended to database
     indexOfMeeting = len(database) - 1
+
     #passing the newly added meeting index to scheduling function (return true on succes)
-    #if(scheduleMeeting(indexOfMeeting)):
-    #CHANGE
-    if(True):
+    if(scheduleMeeting(indexOfMeeting)):
         print("\nMeeting scheduled. \nFetching database...")
     else:
         print("\nError scheduling meeting. Exiting...")
-        time.sleep(3)
+        time.sleep(6)
         sys.exit()
         
     time.sleep(3)
-
     show_all_meetings()
     
 
