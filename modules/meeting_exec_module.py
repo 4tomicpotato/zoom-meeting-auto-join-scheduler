@@ -4,6 +4,7 @@ import threading
 import time
 from datetime import datetime
 import common_funcs_lib as cfl
+from pyautogui import screenshot
 
 #fetch the index of the meeting provided as argument
 try:
@@ -36,6 +37,8 @@ def recordingFunction(enableRecording, stopRecTime):
                 print("Recording...")
                 time.sleep(60)
                 #start the keep recording function to keep recording even after 10mins
+                print("\nNOTE: The recording will auto-start within 10 seconds if paused or stopped before {}".format(stopRecTime.strftime("%I:%M%p %d-%b-%Y")))
+                print("To stop auto-starting of the recording please terminate this program OR close Bandicam from running apps & system tray.")
                 keepRecording(stopRecTime, pathToBandicam)
                 #the stop recrding function is integrated inside keep recording function
     except Exception as e:
@@ -81,15 +84,89 @@ def stopRecording():
         else:
             print("Recorded video(s) saved.")
     
+def commenceMeeting(zoommtgURL, meetingID, enableAutoReconnect, endAt):
+
+    #check if zoom is available
+    print("Finding Zoom on your computer...")
+    zoomPath = cfl.getZoomPath()
+    # form the command to join meeting
+    argToPass = '--url="'+zoommtgURL+'"'
+    commandToJoinMeeting = zoomPath+" "+argToPass
+
+    #join the meeting
+    print("Starting the meeting...")
+    try:
+        cfl.executeCommand(commandToJoinMeeting, False)
+    except:
+        print("Command failed. Meeting didn't start.")
+
+    #if auto reconnect is enabled
+    if(enableAutoReconnect):
+        #if end at is empty stop auto reconnect feature
+        if(endAt == ''):
+            endAt = datetime.now()
+        print("\nNOTE: You will be auto-reconnected to the meeting within 45 seconds, if disconnected before {} .".format(endAt.strftime("%I:%M%p %d-%b-%Y")))
+        print("To stop auto reconnect feature before {}, terminate this program OR close Zoom meetings from running applications and system tray.".format(endAt.strftime("%I:%M%p %d-%b-%Y")))
+        try:
+            keepMeetingAlive(commandToJoinMeeting, endAt)
+        except:
+            print("Command failed. Auto-reconnect may not work.")
+
+def keepMeetingAlive(commandToJoinMeeting, endAt):
+    #check if zoom is running and it's not past the stop time
+    if((endAt > datetime.now()) and cfl.checkProcRunning("Zoom.exe")):
+        #start zoom meeting
+        try:
+            cfl.executeCommand(commandToJoinMeeting, False)
+        except:
+            pass
+        #call itself with args after every inverval
+        threading.Timer(45.0, keepMeetingAlive, [commandToJoinMeeting, endAt]).start()
+    else:
+        print("Zoom auto reconnection stopped.")
+
+def screenShot(enableScreenshot):
+    if(enableScreenshot):
+        print("\nWill capture a screenshot after 2 mins")
+        threading.Timer(120.0, takeScreenshot).start()
+
+def takeScreenshot():
+    try:
+        meetingScreenShot = screenshot()
+        pathToDekstop = os.path.join(os.environ["HOMEPATH"], "Desktop")
+        imageName = "Meeting-"+ str(datetime.strftime(datetime.now(), '%d-%b-%Y-%H-%M-%S')) +".png"
+        meetingScreenShot.save(pathToDekstop+"\\"+imageName)
+    except:
+        print("\nCapturing screenshot failed.")
+    else:
+        print("\nScreenshot saved to Desktop. Filename: "+imageName)
+
+def handlePrevMeeting():
+    #check if any meetings are running or not
+    if(cfl.checkProcRunning("Zoom.exe")):
+        print("\n\nWARNING: If you're already in a zoom meeting you will be disconnected in 20 seconds & your scheduled meeting will start.\nTo cancel the scheduled meeting terminate this program.")
+        countDown(20)
+        #terminate zoom if its running
+        cfl.terminateProcess("Zoom.exe")
+        time.sleep(2)
+    
+
+
+def countDown(sec):
+    while sec: 
+        mins, secs = divmod(sec, 60) 
+        timer = '{:02d}:{:02d}'.format(mins, secs) 
+        print(timer, end="\r") 
+        time.sleep(1) 
+        sec -= 1 
+    print('Starting scheduled meeting') 
 
 #function to start the schedule
 def startMeeting(uniqueID):
 
     #clearing screen
     os.system('cls')
-
-    cfl.bannerDisp("MEETING IN PROGRESS")
-    print("\n")
+    cfl.bannerDisp("ZOOM AUTO SCHEDULER")
     
     global database
 
@@ -116,19 +193,19 @@ def startMeeting(uniqueID):
 
 
     #if there is any older scheduled meeting than the current time (except the current index) stop and delete it with logs - kill keep alive functions
-
+    handlePrevMeeting()
+    
+    #clearing screen
+    os.system('cls')
+    cfl.bannerDisp("MEETING IN PROGRESS")
+    print("\n")
 
     #starting the recording if enabled
     recordingFunction(currentMeeting["enable_recording"], currentMeeting["stop_rec_time"])
-    
-
-
-    #check for zoom
-        #start the meeting
-        #if reconnect on
-            #start the reconnecting feature and pass the end time
-
-    #start the screenshot timer
+    #start the meeting function
+    commenceMeeting(currentMeeting["zoommtg_url"], currentMeeting["meeting_id"], currentMeeting["enable_auto_reconnect"], currentMeeting["end_at"])
+    #take screenshot
+    screenShot(currentMeeting["enable_screenshot"])
 
     #details about how to stop the function
 
