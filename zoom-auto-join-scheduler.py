@@ -22,8 +22,10 @@ def scheduleMeeting(indexOfMeeting):
     scheduleDate = currentMeeting["scheduled_at"].strftime("%d/%m/%Y")
     #load the scheduled time in HH:MM:SS format (for cmd compatibility)
     scheduleTime = currentMeeting["scheduled_at"].strftime("%H:%M:%S")
-    #generating the taskname
-    taskName = "AutoZoomMeeting" + str(indexOfMeeting)
+    #getting the unique id
+    uniqueID = currentMeeting["unique_id"]
+    #generating the taskname with unique ID
+    taskName = "Meeting" + str(uniqueID)
 
     try:
         #load sys variables
@@ -35,8 +37,8 @@ def scheduleMeeting(indexOfMeeting):
         print("Scheuling meeting failed! Error: {}".format(e))
         return False
     else:
-        #SCHTASKS /CREATE /SC ONCE /TN "TaskName1" /TR "\"C:\Program Files (x86)\Python38-32\python.exe\" \"C:\Users\CompName\Desktop\hello.py\" 1" /SD 06/09/2020 /ST 02:26:00 /F
-        commandToSchedule = 'SCHTASKS /CREATE /SC ONCE /TN "'+ taskName +'" /TR "\\"'+ pathToPythonExec +'\\" \\"'+ execModulePath +'\\" '+ str(indexOfMeeting) +'" /SD '+ scheduleDate +' /ST '+scheduleTime+' /F'
+        #SCHTASKS /CREATE /SC ONCE /TN "TaskName1" /TR "\"C:\Program Files (x86)\Python38-32\python.exe\" \"C:\Users\CompName\Desktop\hello.py\" 194049203" /SD 06/09/2020 /ST 02:26:00 /F
+        commandToSchedule = 'SCHTASKS /CREATE /SC ONCE /TN "'+ taskName +'" /TR "\\"'+ pathToPythonExec +'\\" \\"'+ execModulePath +'\\" '+ str(uniqueID) +'" /SD '+ scheduleDate +' /ST '+scheduleTime+' /F'
         try:
             cfl.executeCommand(commandToSchedule, True)
         except Exception as e:
@@ -312,6 +314,9 @@ def makeZoommtgURL(zoomServer, meetingID, hashedMeetingPwd, joinAs):
 
     return zoommtgURL
 
+#generates and returns an unique ID based on time
+def getUniqueID():
+    return int(round(time.time() * 10))
 
 
 def dispAllMeetings():
@@ -333,16 +338,23 @@ def dispAllMeetings():
         if(meeting["enable_auto_reconnect"]):
             print("  {:6} Reconnect if disconnected before: {}".format(" ", str(meeting["end_at"].strftime("%I:%M%p %d-%b-%Y")) ))
         print("  {:6} Meeting URL: {}".format(" ", meeting["meeting_url"]))
+        print("  {:6} Unique ID: {}".format(" ", meeting["unique_id"])) #REMOVE THIS - DEBUGGING
 
 
-#CHANGE
 def deleteMeeting(indexOfMeeting):
     global database
 
-    #cancel the schedule first
-    #database[indexOfMeeting]["reference_to_thread"].cancel()
+    #delete the scheduled task from task scheduler
+    #SCHTASKS /DELETE /TN "TaskName" /F
 
-    #delete the data
+    taskName = "Meeting"+str(database[indexOfMeeting]['unique_id'])
+    commandToDeleteTask = 'SCHTASKS /DELETE /TN "'+ taskName +'" /F'
+    try:
+        cfl.executeCommand(commandToDeleteTask, True)
+    except Exception as e:
+        print("Deleting task from task scheduler failed. Error: {}".format(e))
+
+    #delete the data from database
     del database[indexOfMeeting]
 
     cfl.saveDatabase(database)
@@ -377,8 +389,12 @@ def add_new_meeting():
     #forming the zoommtg url
     zoommtgURL = makeZoommtgURL(zoomServer, meetingID, hashedMeetingPwd, joinAs)
 
+    #generateUniqueID
+    uniqueID = getUniqueID()
+
     #structuring the data into a dictionary
     newMeeting = {
+            "unique_id" : uniqueID,
             "scheduled_at" : scheduledAt,
             "meeting_url" : meetingURL,
             "join_as" : joinAs,
