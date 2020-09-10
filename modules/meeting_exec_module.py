@@ -7,7 +7,7 @@ import common_funcs_lib as cfl
 
 #fetch the index of the meeting provided as argument
 try:
-    indexOfMeeting = int(sys.argv[1])
+    uniqueID = int(sys.argv[1])
 except:
     print("No valid meeting argument provided. Exiting...")
     time.sleep(3)
@@ -31,13 +31,13 @@ def recordingFunction(enableRecording, stopRecTime):
                 #start the initialize bandicam program to check and set reg keys
                 cfl.initializeBandicamSetup()
                 #start recording
-                startRecording(pathToBandicam)
                 print("Initializing recording... \nMight take 10 to 15 seconds...")
-                time.sleep(10)
+                startRecording(pathToBandicam)
+                print("Recording...")
+                time.sleep(60)
                 #start the keep recording function to keep recording even after 10mins
                 keepRecording(stopRecTime, pathToBandicam)
                 #the stop recrding function is integrated inside keep recording function
-                print("Recording...")
     except Exception as e:
         print("Recording failed! Error: {}".format(e))
 
@@ -83,7 +83,7 @@ def stopRecording():
     
 
 #function to start the schedule
-def startMeeting(indexOfMeeting):
+def startMeeting(uniqueID):
 
     #clearing screen
     os.system('cls')
@@ -94,11 +94,24 @@ def startMeeting(indexOfMeeting):
     global database
 
     try:
-        currentMeeting = database[indexOfMeeting]
+
+        foundFlag = 0
+        #find the meeting with the given unique id
+        for i, meeting in enumerate(database):
+            if(meeting["unique_id"] == uniqueID):
+                currentMeeting = database[i]
+                foundFlag = 1
+                break
+
     except Exception as e:
         print("Error: {}".format(e))
         print("Exiting in 3secs...")
         time.sleep(3)
+        sys.exit()
+
+    if(foundFlag == 0):
+        print("Meeting with Unique ID: {} wasn't found.\nPossible reason: Meeting deleted.\nExiting...".format(uniqueID))
+        time.sleep(4)
         sys.exit()
 
 
@@ -120,4 +133,4 @@ def startMeeting(indexOfMeeting):
     #details about how to stop the function
 
 
-startMeeting(indexOfMeeting)
+startMeeting(uniqueID)
