@@ -18,6 +18,8 @@ Note:
   1. To automatically join with audio during zoom meetings, enable "Automatically join audio by computer when joining a meeting" option in "Settings -> Audio" of Zoom Meetings app.
   2. To automatically mute your mic on joining, enable "Mute my microphone when joining a meeting" option in "Settings -> Audio" of Zoom Meetings app.
   3. To automatically disable your camera on joining, enable "Turn off my video when joining a meeting" option in  "Settings -> Video" of Zoom Meetings app.
+  4. Closing "zoom-auto-join-scheduler.py" or rebooting your computer after scheduling a meeting won't effect the automation process. The scheduled meeting will still start if your computer is on during the scheduled time.
+  5. To terminate a scheduled meeting, run "zoom-auto-join-scheduler.py" and Delete the scheduled meeting from the menu.
 
 Precautions: 
   1. If UAC is enabled in your pc, make sure it isn't blocking the script.
