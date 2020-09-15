@@ -8,3 +8,5 @@ json
 subprocess
 winreg
 datetime
+os
+sys
