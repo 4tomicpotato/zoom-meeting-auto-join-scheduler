@@ -2,6 +2,12 @@
 
 Join & record scheduled zoom meetings automatically.
 
+Features:
+  1. Auto join scheduled Zoom Meetings.
+  2. Record the meetings.
+  3. Take screenshot of the meeting.
+  4. Auto re-join the meeting if you get diconnected before a spefied time (Useful if you have poor network connection or your meetings occur part-wise in consecutive sessions) 
+
 Requirements:
   1. Only for Windows 10 & Windows 7
   2. Python 3.0 or higher should be installed in your computer.
