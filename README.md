@@ -24,7 +24,7 @@ Installation instructions:
   
   Example Installation:
       -- Assuming the file is extracted in "C:\" directory:
-      ```
+      ```cmd
       cd "C:\zoom-meeting-auto-join-scheduler"
       pip install -r requirements.txt
       python zoom-auto-join-scheduler.py
