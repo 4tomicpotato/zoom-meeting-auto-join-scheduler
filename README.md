@@ -32,4 +32,4 @@ Note:
 Precautions: 
   1. If UAC is enabled in your PC, make sure it isn't blocking the script.
   2. Make sure you're connected to the Internet when the meeting is scheduled to run.
-  3. Do not move the script directory after you've scheduled a meeting, then the previously scheduled meeting won't run. 
+  3. Do not move the script directory after you've scheduled a meeting, then the previously scheduled meeting(s) won't run. 
