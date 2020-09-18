@@ -35,7 +35,8 @@ def recordingFunction(enableRecording, stopRecTime):
                 print("Initializing recording... \nMight take 10 to 15 seconds...")
                 startRecording(pathToBandicam)
                 print("Recording...")
-                time.sleep(60)
+                print("Your meeting will start in 20 seconds...")
+                time.sleep(20)
                 #start the keep recording function to keep recording even after 10mins
                 print("\nNOTE: The recording will auto-start within 10 seconds if paused or stopped before {}".format(stopRecTime.strftime("%I:%M%p %d-%b-%Y")))
                 print("To stop auto-starting of the recording please terminate this program OR close Bandicam from running apps & system tray.")
@@ -193,7 +194,7 @@ def startMeeting(uniqueID):
 
 
     #if there is any older scheduled meeting than the current time (except the current index) stop and delete it with logs - kill keep alive functions
-    handlePrevMeeting()
+    #handlePrevMeeting()
     
     #clearing screen
     os.system('cls')
