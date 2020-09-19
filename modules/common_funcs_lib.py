@@ -247,3 +247,64 @@ def initializeBandicamSetup(firstTime = False):
             else:  
                 print("\nBandicam is ready to record.")
 
+
+#function to create a XML file for task import
+def addTask(taskName, scheduleDateTime, pathToPythonExec, execModulePath, uniqueID):
+
+    outXML = r'''<?xml version="1.0" encoding="UTF-16"?>
+<Task version="1.2" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
+  <RegistrationInfo>
+    <URI>\{taskName}</URI>
+  </RegistrationInfo>
+  <Triggers>
+    <TimeTrigger>
+      <StartBoundary>{scheduleDateTime}</StartBoundary>
+      <Enabled>true</Enabled>
+    </TimeTrigger>
+  </Triggers>
+  <Principals>
+    <Principal id="Author">
+      <LogonType>InteractiveToken</LogonType>
+      <RunLevel>LeastPrivilege</RunLevel>
+    </Principal>
+  </Principals>
+  <Settings>
+    <MultipleInstancesPolicy>IgnoreNew</MultipleInstancesPolicy>
+    <DisallowStartIfOnBatteries>false</DisallowStartIfOnBatteries>
+    <StopIfGoingOnBatteries>false</StopIfGoingOnBatteries>
+    <AllowHardTerminate>true</AllowHardTerminate>
+    <StartWhenAvailable>false</StartWhenAvailable>
+    <RunOnlyIfNetworkAvailable>false</RunOnlyIfNetworkAvailable>
+    <IdleSettings>
+      <StopOnIdleEnd>false</StopOnIdleEnd>
+      <RestartOnIdle>false</RestartOnIdle>
+    </IdleSettings>
+    <AllowStartOnDemand>true</AllowStartOnDemand>
+    <Enabled>true</Enabled>
+    <Hidden>false</Hidden>
+    <RunOnlyIfIdle>false</RunOnlyIfIdle>
+    <WakeToRun>true</WakeToRun>
+    <ExecutionTimeLimit>PT72H</ExecutionTimeLimit>
+    <Priority>7</Priority>
+  </Settings>
+  <Actions Context="Author">
+    <Exec>
+      <Command>"{pathToPythonExec}"</Command>
+      <Arguments>"{execModulePath}" {uniqueID}</Arguments>
+    </Exec>
+  </Actions>
+</Task>'''.format(taskName= taskName, scheduleDateTime= scheduleDateTime, pathToPythonExec= pathToPythonExec, execModulePath= execModulePath, uniqueID= uniqueID)
+
+    #the path where this file is kept (modules)
+    currentPath = os.path.dirname(os.path.realpath(__file__))
+    #saving the task XML
+    fullPath = currentPath + "\\taskSchedulerTemp.xml"
+    f = open(fullPath, "w")
+    f.write(outXML)
+    f.close()
+
+    commandToSchedule = 'SCHTASKS /CREATE /TN "'+ taskName +'" /XML "'+ fullPath +'" /F'
+
+    executeCommand(commandToSchedule, True)
+
+    
