@@ -1,12 +1,9 @@
+datetime
+wmi
+json
+winreg
 urllib
-pyautogui
 threading
 requests
 time
-wmi
-json
 subprocess
-winreg
-datetime
-os
-sys
