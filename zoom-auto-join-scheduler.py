@@ -18,10 +18,9 @@ def scheduleMeeting(indexOfMeeting):
     global database
     currentMeeting = database[indexOfMeeting]
 
-    #load the scheduled date in dd/mm/yyyy format (for cmd compatibility)
-    scheduleDate = currentMeeting["scheduled_at"].strftime("%d/%m/%Y")
-    #load the scheduled time in HH:MM:SS format (for cmd compatibility)
-    scheduleTime = currentMeeting["scheduled_at"].strftime("%H:%M:%S")
+
+    #load the scheduled time in YYYY-MM-DDTHH:MM:SS format (for XML compatibility)
+    scheduleDateTime = currentMeeting["scheduled_at"].strftime("%Y-%m-%dT%H:%M:%S")
     #getting the unique id
     uniqueID = currentMeeting["unique_id"]
     #generating the taskname with unique ID
@@ -30,23 +29,20 @@ def scheduleMeeting(indexOfMeeting):
     try:
         #load sys variables
         pathToPythonExec = sys.executable
+        #if the executable points to pythonw change it to python (To display output)
+        pathToPythonExec = pathToPythonExec.replace("pythonw", "python")
         currentDir = os.path.dirname(os.path.realpath(__file__))
         execModulePath = currentDir + "\\modules\\meeting_exec_module.py"
 
+        cfl.addTask(taskName= taskName, scheduleDateTime= scheduleDateTime, pathToPythonExec= pathToPythonExec, execModulePath= execModulePath, uniqueID= str(uniqueID))
+
     except Exception as e:
         print("Scheuling meeting failed! Error: {}".format(e))
+        #if there's an error in scheduling delete that meeting details from database
+        deleteMeeting(indexOfMeeting)
         return False
     else:
-        #SCHTASKS /CREATE /SC ONCE /TN "TaskName1" /TR "\"C:\Program Files (x86)\Python38-32\python.exe\" \"C:\Users\CompName\Desktop\hello.py\" 194049203" /SD 06/09/2020 /ST 02:26:00 /F
-        commandToSchedule = 'SCHTASKS /CREATE /SC ONCE /TN "'+ taskName +'" /TR "\\"'+ pathToPythonExec +'\\" \\"'+ execModulePath +'\\" '+ str(uniqueID) +'" /SD '+ scheduleDate +' /ST '+scheduleTime+' /F'
-        try:
-            cfl.executeCommand(commandToSchedule, True)
-        except Exception as e:
-            print("Scheuling meeting failed! Error: {}".format(e))
-            return False
-        else:
-            return True
-
+        return True
 
 
 
