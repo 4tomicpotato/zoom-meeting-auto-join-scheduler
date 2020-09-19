@@ -500,7 +500,7 @@ def quit_script():
     #clearing screen
     os.system('cls')
 
-    cfl.bannerDisp("Author : github.com/r4jdip")
+    cfl.bannerDisp("Author : github.com/4tomicpotato")
     print("\n")
 
     time.sleep(3)
