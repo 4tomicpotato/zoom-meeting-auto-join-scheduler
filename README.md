@@ -18,9 +18,9 @@ Join & record scheduled zoom meetings automatically.
 ## Installation instructions:
   1. Download and extract this repository
   2. Open Command Prompt as administrator.
-  3. Change current directory to the extracted path (Using command: cd "path to direcotry in which you extracted the files")
-  4. Install the python modules listed in requirements.txt Using command: pip install -r requirements.txt )
-  5. Run the zoom-auto-join-scheduler.py with Python (Using command: python zoom-auto-join-scheduler.py)
+  3. Change current directory to the extracted path (Using command: cd "path to direcotry in which you extracted the files" )
+  4. Install the python modules listed in requirements.txt Using command: FOR /F %k in (requirements.txt) DO pip install %k )
+  5. Run the zoom-auto-join-scheduler.py with Python (Using command: python zoom-auto-join-scheduler.py )
   
   Example Installation:  
     
