@@ -49,7 +49,7 @@ def scheduleMeeting(indexOfMeeting):
 def downloadAndInstallBadicam():
     link = "https://dl.bandicam.com/bdcamsetup.exe"
 
-    pathToDownloads = os.path.join(os.environ["HOMEPATH"], "Downloads")
+    pathToDownloads = cfl.getDownloadFolder()
     file_name = "bdcamsetup.exe"
     file_abs_path = pathToDownloads+"\\"+file_name
 
@@ -83,14 +83,16 @@ def downloadAndInstallBadicam():
                     sys.stdout.write("\r[{0}{1}] {2} MB / {3} MB".format(('=' * done), (' ' * (50-done)), round((dl / (1024 * 1024)), 1), fullSize))    
                     sys.stdout.flush()
 
+            f.close()
 
     print("\nBandicam download complete!")
+    print("\nIf it takes more than 5 minutes to complete installtion, please manually install {} located in {} ".format(file_name, pathToDownloads))
     print("\nInstalling...", end="")
 
     #installing bandicam
-    argToInstallBandicam = " /S"
+    commandToInstallBandicam = '"'+file_abs_path+'" /S'
     try:
-        cfl.executeCommand(file_abs_path + argToInstallBandicam, True)
+        cfl.executeCommand(commandToInstallBandicam, True)
     except:
         print("\nBandicam installation failed. Install it manually.")
     else:
